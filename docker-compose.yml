@@ -1,0 +1,19 @@
+# Runs the images published to GHCR by .github/workflows/ci-cd.yml.
+# The image names are the lowercased repository path + "-backend" / "-frontend",
+# which is what docker/metadata-action pushes.
+services:
+  backend:
+    image: ghcr.io/no-country-simulation/g9-latam-team62-backend:latest
+    container_name: fintech-api
+    restart: unless-stopped
+    ports:
+      - "8080:8080"
+
+  frontend:
+    image: ghcr.io/no-country-simulation/g9-latam-team62-frontend:latest
+    container_name: fintech-frontend
+    restart: unless-stopped
+    ports:
+      - "80:80"
+    depends_on:
+      - backend
