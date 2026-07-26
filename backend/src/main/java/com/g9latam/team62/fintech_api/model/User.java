@@ -1,0 +1,51 @@
+package com.g9latam.team62.fintech_api.model;
+
+import com.fasterxml.jackson.annotation.JsonProperty;
+import jakarta.validation.constraints.DecimalMax;
+import jakarta.validation.constraints.DecimalMin;
+import jakarta.validation.constraints.Email;
+import jakarta.validation.constraints.NotBlank;
+import jakarta.validation.constraints.PositiveOrZero;
+import lombok.AllArgsConstructor;
+import lombok.Data;
+import lombok.NoArgsConstructor;
+
+import java.math.BigDecimal;
+import java.time.LocalDateTime;
+
+@Data
+@NoArgsConstructor
+@AllArgsConstructor
+public class User {
+
+    private Long id;
+
+    @NotBlank
+    private String name;
+
+    // login identifier, unique across users
+    @NotBlank
+    @Email
+    private String email;
+
+    // stored as a BCrypt hash; write-only so it never appears in responses
+    @NotBlank
+    @JsonProperty(access = JsonProperty.Access.WRITE_ONLY)
+    private String password;
+
+    @PositiveOrZero
+    private BigDecimal monthlyIncome;
+
+    private SavingFrequency savingFrequency;
+
+    // financialProfile, profileAccuracy and profileUpdatedAt are written by the
+    // external profiling app through PUT /api/users/{id}/profile, not by API clients
+    private FinancialProfile financialProfile;
+
+    // confidence of the assigned profile, 0.0 to 1.0; null until first computed
+    @DecimalMin("0.0")
+    @DecimalMax("1.0")
+    private Double profileAccuracy;
+
+    private LocalDateTime profileUpdatedAt;
+}
