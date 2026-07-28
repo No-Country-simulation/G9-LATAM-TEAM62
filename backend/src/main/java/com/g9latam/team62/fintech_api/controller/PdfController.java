@@ -1,5 +1,5 @@
 package com.g9latam.team62.fintech_api.controller;
-import org.springframework.beans.factory.annotation.Autowired;
+
 import org.springframework.http.HttpHeaders;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.MediaType;
@@ -15,8 +15,11 @@ import com.g9latam.team62.fintech_api.service.PdfToExcelService;
 @RequestMapping("/api/converter")
 public class PdfController {
 
-    @Autowired
-    private PdfToExcelService pdfToExcelService;
+    private final PdfToExcelService pdfToExcelService;
+
+    public PdfController(PdfToExcelService pdfToExcelService) {
+        this.pdfToExcelService = pdfToExcelService;
+    }
 
     @PostMapping("/pdf-to-excel")
     public ResponseEntity<byte[]> convert(@RequestParam("file") MultipartFile file) {

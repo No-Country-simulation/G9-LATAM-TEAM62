@@ -4,7 +4,6 @@ import org.apache.pdfbox.pdmodel.PDDocument;
 import org.apache.pdfbox.text.PDFTextStripper;
 import org.apache.poi.ss.usermodel.Cell;
 import org.apache.poi.ss.usermodel.CellStyle;
-import org.apache.poi.ss.usermodel.CellType;
 import org.apache.poi.ss.usermodel.Row;
 import org.apache.poi.ss.usermodel.Sheet;
 import org.apache.poi.ss.usermodel.Workbook;
@@ -35,8 +34,6 @@ public class PdfToExcelService {
             .compile("^N° de Movimientos\\s+(?<count>\\d+)\\s+Saldo Anterior \\$\\s+(?<balance>[\\d.]+)$");
     private static final Pattern DATE_RANGE_PATTERN = Pattern
             .compile("^Fecha Inicio\\s+(?<start>\\d{2}/\\d{2}/\\d{4})\\s+Fecha Final\\s+(?<end>\\d{2}/\\d{2}/\\d{4})$");
-    private static final Pattern TOTALS_PATTERN = Pattern
-            .compile("^Total (?:Giros|Depósitos) \\$\\s*Total (?:Cargos|Abonos) \\$\\s+(?<amount>[\\d.]+)$");
     private static final Pattern BALANCE_ONLY_PATTERN = Pattern
             .compile("^\\$?(?<amount>[\\d.]+)\\s+\\$?(?<balance>[\\d.]+)$");
     private static final Pattern DATE_OPERATION_PATTERN = Pattern
@@ -486,7 +483,6 @@ public class PdfToExcelService {
         }
 
         if (value instanceof Number number) {
-            cell.setCellType(CellType.NUMERIC);
             cell.setCellValue(number.doubleValue());
             return;
         }
