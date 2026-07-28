@@ -98,7 +98,9 @@ finance-ai/
 ├── frontend/           # Interfaz de usuario
 └── infra/              # Configuración Docker y OCI
 ```
-
+curl.exe -X POST "http://localhost:8080/api/converter/pdf-to-excel" `
+  -F "file=@..\Cartola CuentaRUT 20260523_000002.pdf;type=application/pdf" `
+  -o salida.xlsx
 ---
 
 ## Categorías de clasificación
