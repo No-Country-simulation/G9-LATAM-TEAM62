@@ -5,6 +5,7 @@ import com.g9latam.team62.fintech_api.model.User;
 import com.g9latam.team62.fintech_api.repository.RecommendationRepository;
 import com.g9latam.team62.fintech_api.repository.UserRepository;
 import org.springframework.stereotype.Service;
+import org.springframework.transaction.annotation.Transactional;
 
 import java.time.LocalDateTime;
 import java.util.Collection;
@@ -12,6 +13,7 @@ import java.util.List;
 import java.util.Optional;
 
 @Service
+@Transactional(readOnly = true)
 public class RecommendationService {
 
     private final RecommendationRepository repository;
@@ -22,6 +24,7 @@ public class RecommendationService {
         this.userRepository = userRepository;
     }
 
+    @Transactional
     public Recommendation create(Recommendation recommendation) {
         User user = userRepository.findById(recommendation.getUserId())
                 .orElseThrow(() -> new IllegalArgumentException(
@@ -44,6 +47,7 @@ public class RecommendationService {
         return repository.findByUserId(userId);
     }
 
+    @Transactional
     public void delete(Long id) {
         repository.deleteById(id);
     }

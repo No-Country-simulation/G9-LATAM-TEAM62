@@ -8,6 +8,20 @@ services:
     restart: unless-stopped
     ports:
       - "8080:8080"
+    # Values come from the .env file next to this one (see .env.example).
+    # "Next to this one" is the repository root locally, and the deploy directory
+    # on the server -- the CI job copies this file there and runs compose from it,
+    # so every relative path below resolves against whichever of the two is in use.
+    # Unset means the in-memory "dev" profile, i.e. the behaviour before Oracle:
+    # set SPRING_PROFILES_ACTIVE=oracle once the wallet and credentials are in place.
+    environment:
+      SPRING_PROFILES_ACTIVE: ${SPRING_PROFILES_ACTIVE:-dev}
+      ORACLE_JDBC_URL: ${ORACLE_JDBC_URL:-}
+      ORACLE_DB_USER: ${ORACLE_DB_USER:-}
+      ORACLE_DB_PASSWORD: ${ORACLE_DB_PASSWORD:-}
+    volumes:
+      # Unzipped Autonomous Database wallet; read-only, never committed.
+      - ./secrets/wallet:/app/wallet:ro
 
   frontend:
     image: ghcr.io/no-country-simulation/g9-latam-team62-frontend:latest

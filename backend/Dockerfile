@@ -24,5 +24,10 @@ USER spring:spring
 
 COPY --from=build /app/target/fintech-api-0.0.1-SNAPSHOT.jar app.jar
 
+# Where the Oracle driver looks for the Autonomous Database wallet. The wallet is
+# a credential: it is mounted at run time (see docker-compose.yml), never baked
+# into the image. Without it the app runs on the default in-memory "dev" profile.
+ENV TNS_ADMIN=/app/wallet
+
 EXPOSE 8080
 ENTRYPOINT ["java", "-jar", "app.jar"]

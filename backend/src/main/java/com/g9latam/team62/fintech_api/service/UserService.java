@@ -8,12 +8,14 @@ import com.g9latam.team62.fintech_api.repository.UserRepository;
 import org.springframework.security.crypto.bcrypt.BCryptPasswordEncoder;
 import org.springframework.security.crypto.password.PasswordEncoder;
 import org.springframework.stereotype.Service;
+import org.springframework.transaction.annotation.Transactional;
 
 import java.time.LocalDateTime;
 import java.util.Collection;
 import java.util.Optional;
 
 @Service
+@Transactional(readOnly = true)
 public class UserService {
 
     private final UserRepository repository;
@@ -28,6 +30,7 @@ public class UserService {
         this.recommendationRepository = recommendationRepository;
     }
 
+    @Transactional
     public User create(User user) {
         requireEmailAvailable(user.getEmail(), null);
         user.setId(null);
@@ -47,6 +50,7 @@ public class UserService {
         return repository.findById(id);
     }
 
+    @Transactional
     public User update(Long id, User user) {
         User existing = repository.findById(id)
                 .orElseThrow(() -> new IllegalArgumentException("user " + id + " does not exist"));
@@ -59,6 +63,7 @@ public class UserService {
         return repository.save(user);
     }
 
+    @Transactional
     public User updateProfile(Long id, ProfileUpdateRequest request) {
         User user = repository.findById(id)
                 .orElseThrow(() -> new IllegalArgumentException("user " + id + " does not exist"));
@@ -76,6 +81,8 @@ public class UserService {
                 .filter(user -> passwordEncoder.matches(rawPassword, user.getPassword()));
     }
 
+    // one transaction: children first, so the foreign keys never dangle
+    @Transactional
     public void delete(Long id) {
         transactionRepository.deleteByUserId(id);
         recommendationRepository.deleteByUserId(id);
