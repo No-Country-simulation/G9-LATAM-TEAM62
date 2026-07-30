@@ -86,8 +86,22 @@ jobs:
 
       # Pulls the freshly pushed :latest images referenced in docker-compose.yml
       # and recreates any container whose image changed.
+      #
+      # Compose runs from DEPLOY_DIR, not from the workspace: actions/checkout
+      # cleans with "git clean -ffdx", and -x includes ignored files, so a .env
+      # and a wallet living here would be wiped on every deploy. DEPLOY_DIR holds
+      # both and is never checked out. Until it exists the deploy falls back to
+      # the workspace, which means the in-memory profile (see README > Despliegue).
       - name: Pull latest images and restart
+        env:
+          DEPLOY_DIR: /opt/financeai
         run: |
+          if [ -d "$DEPLOY_DIR" ]; then
+            cp docker-compose.yml "$DEPLOY_DIR/docker-compose.yml"
+            cd "$DEPLOY_DIR"
+          else
+            echo "::warning::$DEPLOY_DIR not found - deploying from the workspace without .env or wallet"
+          fi
           docker compose pull
           docker compose up -d
 

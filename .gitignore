@@ -33,3 +33,10 @@ build/
 .vscode/
 
 .claude/
+
+### Credentials
+.env
+secrets/
+# Oracle Autonomous Database wallets
+wallet/
+Wallet_*.zip

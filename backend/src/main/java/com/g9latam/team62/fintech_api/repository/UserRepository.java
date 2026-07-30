@@ -1,43 +1,16 @@
 package com.g9latam.team62.fintech_api.repository;
 
 import com.g9latam.team62.fintech_api.model.User;
-import org.springframework.stereotype.Repository;
+import org.springframework.data.jpa.repository.JpaRepository;
+import org.springframework.data.jpa.repository.Query;
+import org.springframework.data.repository.query.Param;
 
-import java.util.Collection;
-import java.util.Map;
 import java.util.Optional;
-import java.util.concurrent.ConcurrentHashMap;
-import java.util.concurrent.atomic.AtomicLong;
 
-@Repository
-public class UserRepository {
+public interface UserRepository extends JpaRepository<User, Long> {
 
-    private final Map<Long, User> storage = new ConcurrentHashMap<>();
-    private final AtomicLong idGenerator = new AtomicLong();
-
-    public User save(User user) {
-        if (user.getId() == null) {
-            user.setId(idGenerator.incrementAndGet());
-        }
-        storage.put(user.getId(), user);
-        return user;
-    }
-
-    public Collection<User> findAll() {
-        return storage.values();
-    }
-
-    public Optional<User> findById(Long id) {
-        return Optional.ofNullable(storage.get(id));
-    }
-
-    public Optional<User> findByEmail(String email) {
-        return storage.values().stream()
-                .filter(user -> user.getEmail().equalsIgnoreCase(email))
-                .findFirst();
-    }
-
-    public void deleteById(Long id) {
-        storage.remove(id);
-    }
+    // emails are matched case-insensitively, so ADA@x.com and ada@x.com are the
+    // same login; the unique index on lower(email) enforces it in the database
+    @Query("select u from User u where lower(u.email) = lower(:email)")
+    Optional<User> findByEmail(@Param("email") String email);
 }
