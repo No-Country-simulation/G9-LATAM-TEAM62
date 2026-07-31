@@ -76,6 +76,16 @@ public class UserService {
                 .filter(user -> passwordEncoder.matches(rawPassword, user.getPassword()));
     }
 
+    public void changePassword(String email, String oldPassword, String newPassword) {
+        User user = repository.findByEmail(email)
+                .orElseThrow(() -> new IllegalArgumentException("User not found: " + email));
+        if (!passwordEncoder.matches(oldPassword, user.getPassword())) {
+            throw new IllegalArgumentException("Incorrect password");
+        }
+        user.setPassword(passwordEncoder.encode(newPassword));
+        repository.save(user);
+    }
+
     public void delete(Long id) {
         transactionRepository.deleteByUserId(id);
         recommendationRepository.deleteByUserId(id);

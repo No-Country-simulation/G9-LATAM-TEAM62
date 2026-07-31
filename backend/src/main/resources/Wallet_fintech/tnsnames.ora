@@ -1,0 +1,12 @@
+fintech_high = (description= (retry_count=20)(retry_delay=3)(address=(protocol=tcps)(port=1522)(host=adb.sa-santiago-1.oraclecloud.com))(connect_data=(service_name=gd3f4b562c1b216_fintech_high.adb.oraclecloud.com))(security=(ssl_server_dn_match=yes)))
+
+fintech_medium = (description= (retry_count=20)(retry_delay=3)(address=(protocol=tcps)(port=1522)(host=adb.sa-santiago-1.oraclecloud.com))(connect_data=(service_name=gd3f4b562c1b216_fintech_medium.adb.oraclecloud.com))(security=(ssl_server_dn_match=yes)))
+
+fintech_low = (description= (retry_count=20)(retry_delay=3)(address=(protocol=tcps)(port=1522)(host=adb.sa-santiago-1.oraclecloud.com))(connect_data=(service_name=gd3f4b562c1b216_fintech_low.adb.oraclecloud.com))(security=(ssl_server_dn_match=yes)))
+
+fintech_tp = (description= (retry_count=20)(retry_delay=3)(address=(protocol=tcps)(port=1522)(host=adb.sa-santiago-1.oraclecloud.com))(connect_data=(service_name=gd3f4b562c1b216_fintech_tp.adb.oraclecloud.com))(security=(ssl_server_dn_match=yes)))
+
+fintech_tpurgent = (description= (retry_count=20)(retry_delay=3)(address=(protocol=tcps)(port=1522)(host=adb.sa-santiago-1.oraclecloud.com))(connect_data=(service_name=gd3f4b562c1b216_fintech_tpurgent.adb.oraclecloud.com))(security=(ssl_server_dn_match=yes)))
+
+
+
