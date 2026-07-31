@@ -5,7 +5,6 @@ import com.g9latam.team62.fintech_api.model.User;
 import com.g9latam.team62.fintech_api.repository.RecommendationRepository;
 import com.g9latam.team62.fintech_api.repository.TransactionRepository;
 import com.g9latam.team62.fintech_api.repository.UserRepository;
-import org.springframework.security.crypto.bcrypt.BCryptPasswordEncoder;
 import org.springframework.security.crypto.password.PasswordEncoder;
 import org.springframework.stereotype.Service;
 
@@ -19,13 +18,14 @@ public class UserService {
     private final UserRepository repository;
     private final TransactionRepository transactionRepository;
     private final RecommendationRepository recommendationRepository;
-    private final PasswordEncoder passwordEncoder = new BCryptPasswordEncoder();
+    private final PasswordEncoder passwordEncoder;
 
     public UserService(UserRepository repository, TransactionRepository transactionRepository,
-                       RecommendationRepository recommendationRepository) {
+                       RecommendationRepository recommendationRepository, PasswordEncoder passwordEncoder) {
         this.repository = repository;
         this.transactionRepository = transactionRepository;
         this.recommendationRepository = recommendationRepository;
+        this.passwordEncoder = passwordEncoder;
     }
 
     public User create(User user) {
