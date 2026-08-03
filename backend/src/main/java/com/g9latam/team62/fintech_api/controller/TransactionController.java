@@ -1,5 +1,6 @@
 package com.g9latam.team62.fintech_api.controller;
 
+import com.g9latam.team62.fintech_api.dto.CategoryCorrectionRequest;
 import com.g9latam.team62.fintech_api.model.Transaction;
 import com.g9latam.team62.fintech_api.service.TransactionService;
 import jakarta.validation.Valid;
@@ -61,7 +62,7 @@ public class TransactionController {
     }
 
     @PostMapping
-    @Operation(summary = "Registrar una nueva transacción", description = "Crea una transacción financiera (por ejemplo, ingreso o egreso).")
+    @Operation(summary = "Registrar una nueva transacción", description = "Crea una transacción financiera. Si incluye descripción, la categoría se asigna automáticamente mediante el clasificador jerárquico de 4 niveles.")
     @ApiResponses({
             @ApiResponse(responseCode = "201", description = "Transacción registrada con éxito",
                     content = @Content(mediaType = "application/json", schema = @Schema(implementation = Transaction.class))),
@@ -86,6 +87,27 @@ public class TransactionController {
         return ResponseEntity.ok(service.update(id, transaction));
     }
 
+    @PutMapping("/{id}/category")
+    @Operation(summary = "Corregir categoría de transacción",
+               description = "Permite al usuario corregir la categoría asignada automáticamente. "
+                           + "La corrección se guarda como aprendizaje colaborativo para beneficiar "
+                           + "futuras clasificaciones de todos los usuarios.")
+    @ApiResponses({
+            @ApiResponse(responseCode = "200", description = "Categoría actualizada con éxito",
+                    content = @Content(mediaType = "application/json", schema = @Schema(implementation = Transaction.class))),
+            @ApiResponse(responseCode = "404", description = "Transacción no encontrada"),
+            @ApiResponse(responseCode = "400", description = "Datos de entrada inválidos")
+    })
+    public ResponseEntity<Transaction> updateCategory(
+            @Parameter(description = "ID de la transacción a corregir") @PathVariable Long id,
+            @Valid @RequestBody CategoryCorrectionRequest request) {
+        if (service.findById(id).isEmpty()) {
+            return ResponseEntity.notFound().build();
+        }
+        Transaction updated = service.updateCategory(id, request.category());
+        return ResponseEntity.ok(updated);
+    }
+
     @DeleteMapping("/{id}")
     @Operation(summary = "Eliminar transacción", description = "Elimina físicamente la transacción con el ID especificado.")
     @ApiResponses({
@@ -100,3 +122,4 @@ public class TransactionController {
         return ResponseEntity.noContent().build();
     }
 }
+

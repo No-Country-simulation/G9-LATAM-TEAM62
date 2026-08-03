@@ -19,6 +19,7 @@ public class FintechApiApplication {
 	@Bean
 	public CommandLineRunner initData(UserService userService) {
 		return args -> {
+			// Usuario de prueba inicial
 			if (userService.findAll().isEmpty()) {
 				User testUser = new User();
 				testUser.setName("Test User");
@@ -27,13 +28,11 @@ public class FintechApiApplication {
 				testUser.setMonthlyIncome(new BigDecimal("5000.00"));
 				userService.create(testUser);
 				System.out.println("\n==================================================");
-				System.out.println(">>> SEEDED TEST USER FOR TESTING");
+				System.out.println(">>> USUARIO DE PRUEBA CREADO");
 				System.out.println(">>> Email: test@example.com");
 				System.out.println(">>> Password: password123");
 				System.out.println("==================================================\n");
 			}
 		};
 	}
-
 }
-

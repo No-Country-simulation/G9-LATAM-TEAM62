@@ -43,4 +43,4 @@ public class Transaction {
     public TransactionType getType() {
         return category == null ? null : category.getType();
     }
-}
+}
