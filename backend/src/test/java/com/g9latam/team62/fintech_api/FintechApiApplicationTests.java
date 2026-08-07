@@ -9,5 +9,4 @@ class FintechApiApplicationTests {
 	@Test
 	void contextLoads() {
 	}
-
 }

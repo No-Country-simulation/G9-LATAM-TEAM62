@@ -32,9 +32,12 @@ import java.util.Collection;
 public class TransactionController {
 
     private final TransactionService service;
+    private final com.g9latam.team62.fintech_api.service.StatementIngestionService statementIngestionService;
 
-    public TransactionController(TransactionService service) {
+    public TransactionController(TransactionService service,
+                                 com.g9latam.team62.fintech_api.service.StatementIngestionService statementIngestionService) {
         this.service = service;
+        this.statementIngestionService = statementIngestionService;
     }
 
     @GetMapping
@@ -71,6 +74,34 @@ public class TransactionController {
     public ResponseEntity<Transaction> create(@Valid @RequestBody Transaction transaction) {
         Transaction created = service.create(transaction);
         return ResponseEntity.status(HttpStatus.CREATED).body(created);
+    }
+
+    @PostMapping("/manual")
+    @Operation(summary = "Registrar transacción manual", description = "Registra una entrada manual de dinero (efectivo/débito) asignando la fecha de hoy.")
+    @ApiResponses({
+            @ApiResponse(responseCode = "201", description = "Transacción manual registrada con éxito",
+                    content = @Content(mediaType = "application/json", schema = @Schema(implementation = Transaction.class))),
+            @ApiResponse(responseCode = "400", description = "Datos de entrada inválidos")
+    })
+    public ResponseEntity<Transaction> createManual(@Valid @RequestBody com.g9latam.team62.fintech_api.dto.ManualTransactionRequest request) {
+        Transaction created = service.createManual(request);
+        return ResponseEntity.status(HttpStatus.CREATED).body(created);
+    }
+
+    @PostMapping(value = "/upload-statement", consumes = org.springframework.http.MediaType.MULTIPART_FORM_DATA_VALUE)
+    @Operation(summary = "Subir e ingestar cartola bancaria", description = "Recibe un archivo (Excel, CSV o PDF) de cartola bancaria, invoca el script Python de limpieza y guarda las transacciones clasificadas automáticamente.")
+    @ApiResponses({
+            @ApiResponse(responseCode = "200", description = "Cartola procesada e ingesta completada con éxito"),
+            @ApiResponse(responseCode = "400", description = "Error procesando el archivo de la cartola")
+    })
+    public ResponseEntity<com.g9latam.team62.fintech_api.dto.StatementIngestionResult> uploadStatement(
+            @RequestParam("file") org.springframework.web.multipart.MultipartFile file,
+            @RequestParam("userId") Long userId,
+            @RequestParam(value = "defaultYear", required = false) Integer defaultYear,
+            @RequestParam(value = "country", required = false) String country) {
+        com.g9latam.team62.fintech_api.dto.StatementIngestionResult result =
+                statementIngestionService.ingestStatement(file, userId, defaultYear, country);
+        return ResponseEntity.ok(result);
     }
 
     @PutMapping("/{id}")

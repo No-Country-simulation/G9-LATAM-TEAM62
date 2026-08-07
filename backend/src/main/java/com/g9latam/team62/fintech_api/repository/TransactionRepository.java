@@ -38,6 +38,13 @@ public class TransactionRepository {
                 .toList();
     }
 
+    public List<Transaction> findByUserIdAndDateBetween(Long userId, java.time.LocalDate start, java.time.LocalDate end) {
+        return storage.values().stream()
+                .filter(t -> userId.equals(t.getUserId()))
+                .filter(t -> t.getDate() != null && !t.getDate().isBefore(start) && !t.getDate().isAfter(end))
+                .toList();
+    }
+
     public void deleteById(Long id) {
         storage.remove(id);
     }

@@ -18,13 +18,17 @@ public class UserService {
     private final UserRepository repository;
     private final TransactionRepository transactionRepository;
     private final RecommendationRepository recommendationRepository;
+    private final com.g9latam.team62.fintech_api.repository.FinancialProfileHistoryRepository historyRepository;
     private final PasswordEncoder passwordEncoder;
 
     public UserService(UserRepository repository, TransactionRepository transactionRepository,
-                       RecommendationRepository recommendationRepository, PasswordEncoder passwordEncoder) {
+                       RecommendationRepository recommendationRepository,
+                       com.g9latam.team62.fintech_api.repository.FinancialProfileHistoryRepository historyRepository,
+                       PasswordEncoder passwordEncoder) {
         this.repository = repository;
         this.transactionRepository = transactionRepository;
         this.recommendationRepository = recommendationRepository;
+        this.historyRepository = historyRepository;
         this.passwordEncoder = passwordEncoder;
     }
 
@@ -68,6 +72,12 @@ public class UserService {
             user.setSavingFrequency(request.savingFrequency());
         }
         user.setProfileUpdatedAt(LocalDateTime.now());
+
+        // Registra la entrada en el historial de evolución del perfil financiero
+        historyRepository.save(new com.g9latam.team62.fintech_api.model.FinancialProfileHistory(
+                null, id, request.financialProfile(), request.profileAccuracy(), LocalDateTime.now()
+        ));
+
         return repository.save(user);
     }
 

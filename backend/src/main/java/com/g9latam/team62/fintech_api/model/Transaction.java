@@ -40,6 +40,20 @@ public class Transaction {
     @NotNull
     private Long userId;
 
+    private TransactionSource source = TransactionSource.BANK;
+
+    private PaymentMethod paymentMethod;
+
+    private LinkStatus linkStatus = LinkStatus.UNLINKED;
+
+    private Long linkedTransactionId;
+
+    private CategoryMethod categoryMethod;
+
+    private Double categoryConfidence;
+
+    private String bankName;
+
     public TransactionType getType() {
         return category == null ? null : category.getType();
     }
