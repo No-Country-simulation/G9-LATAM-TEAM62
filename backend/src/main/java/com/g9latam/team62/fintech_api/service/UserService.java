@@ -1,7 +1,9 @@
 package com.g9latam.team62.fintech_api.service;
 
 import com.g9latam.team62.fintech_api.dto.ProfileUpdateRequest;
+import com.g9latam.team62.fintech_api.model.FinancialProfileHistory;
 import com.g9latam.team62.fintech_api.model.User;
+import com.g9latam.team62.fintech_api.repository.FinancialProfileHistoryRepository;
 import com.g9latam.team62.fintech_api.repository.RecommendationRepository;
 import com.g9latam.team62.fintech_api.repository.TransactionRepository;
 import com.g9latam.team62.fintech_api.repository.UserRepository;
@@ -21,13 +23,17 @@ public class UserService {
     private final UserRepository repository;
     private final TransactionRepository transactionRepository;
     private final RecommendationRepository recommendationRepository;
+    // -- aporte --
+    private final FinancialProfileHistoryRepository profileHistoryRepository;
     private final PasswordEncoder passwordEncoder = new BCryptPasswordEncoder();
 
     public UserService(UserRepository repository, TransactionRepository transactionRepository,
-                       RecommendationRepository recommendationRepository) {
+                       RecommendationRepository recommendationRepository,
+                       FinancialProfileHistoryRepository profileHistoryRepository) {
         this.repository = repository;
         this.transactionRepository = transactionRepository;
         this.recommendationRepository = recommendationRepository;
+        this.profileHistoryRepository = profileHistoryRepository;
     }
 
     @Transactional
@@ -73,7 +79,14 @@ public class UserService {
             user.setSavingFrequency(request.savingFrequency());
         }
         user.setProfileUpdatedAt(LocalDateTime.now());
-        return repository.save(user);
+        User saved = repository.save(user);
+
+        // -- aporte -- una fila más en el historial, nunca se sobreescribe.
+        // Es lo único nuevo acá: el resto del método es exactamente el original.
+        profileHistoryRepository.save(new FinancialProfileHistory(
+                null, saved.getId(), saved.getFinancialProfile(), saved.getProfileAccuracy(), saved.getProfileUpdatedAt()));
+
+        return saved;
     }
 
     public Optional<User> authenticate(String email, String rawPassword) {
@@ -86,6 +99,7 @@ public class UserService {
     public void delete(Long id) {
         transactionRepository.deleteByUserId(id);
         recommendationRepository.deleteByUserId(id);
+        profileHistoryRepository.deleteByUserId(id); // -- aporte --
         repository.deleteById(id);
     }
 

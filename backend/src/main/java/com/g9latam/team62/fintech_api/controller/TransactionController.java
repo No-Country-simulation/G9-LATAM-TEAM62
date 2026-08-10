@@ -1,5 +1,7 @@
 package com.g9latam.team62.fintech_api.controller;
 
+import com.g9latam.team62.fintech_api.dto.CategoryCorrectionRequest;
+import com.g9latam.team62.fintech_api.dto.ManualTransactionRequest;
 import com.g9latam.team62.fintech_api.model.Transaction;
 import com.g9latam.team62.fintech_api.service.TransactionService;
 import jakarta.validation.Valid;
@@ -48,12 +50,30 @@ public class TransactionController {
         return ResponseEntity.status(HttpStatus.CREATED).body(created);
     }
 
+    // -- aporte -- Alternativa 1: registro manual en el momento de la compra.
+    @PostMapping("/manual")
+    public ResponseEntity<Transaction> createManual(@Valid @RequestBody ManualTransactionRequest request) {
+        Transaction created = service.createManual(request);
+        return ResponseEntity.status(HttpStatus.CREATED).body(created);
+    }
+
     @PutMapping("/{id}")
     public ResponseEntity<Transaction> update(@PathVariable Long id, @Valid @RequestBody Transaction transaction) {
         if (service.findById(id).isEmpty()) {
             return ResponseEntity.notFound().build();
         }
         return ResponseEntity.ok(service.update(id, transaction));
+    }
+
+    // -- aporte -- Feedback del usuario (nivel 1 del plan de clasificación
+    // híbrido): corrige la categoría sugerida por mapeo/regla/modelo.
+    @PutMapping("/{id}/category")
+    public ResponseEntity<Transaction> correctCategory(@PathVariable Long id,
+                                                        @Valid @RequestBody CategoryCorrectionRequest request) {
+        if (service.findById(id).isEmpty()) {
+            return ResponseEntity.notFound().build();
+        }
+        return ResponseEntity.ok(service.correctCategory(id, request));
     }
 
     @DeleteMapping("/{id}")
