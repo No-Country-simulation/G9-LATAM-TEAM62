@@ -13,6 +13,8 @@ import jakarta.persistence.Index;
 import jakarta.persistence.JoinColumn;
 import jakarta.persistence.ManyToOne;
 import jakarta.persistence.Table;
+import jakarta.validation.constraints.DecimalMax;
+import jakarta.validation.constraints.DecimalMin;
 import jakarta.validation.constraints.NotNull;
 import jakarta.validation.constraints.PastOrPresent;
 import jakarta.validation.constraints.Positive;
@@ -23,6 +25,9 @@ import lombok.NoArgsConstructor;
 import java.math.BigDecimal;
 import java.time.LocalDate;
 
+// RECONCILIADO contra la versión real del repo (la que migró a JPA con Currency).
+// Todo lo marcado "-- aporte --" es nuevo; el resto es exactamente el archivo
+// real, sin tocar su forma ni sus anotaciones existentes.
 @Entity
 @Table(name = "transactions", indexes = @Index(name = "idx_transactions_user_id", columnList = "user_id"))
 @Data
@@ -45,9 +50,12 @@ public class Transaction {
     @Column(nullable = false, precision = 19, scale = 2)
     private BigDecimal amount;
 
-    @NotNull
+    // -- aporte -- ya no es @NotNull: una transacción BANK puede llegar sin
+    // categoría y el futuro CategoryClassifierService la completa antes de
+    // guardar (ver TransactionService.create()). Las transacciones MANUAL
+    // siempre traen categoría desde el DTO, que sí la exige.
     @Enumerated(EnumType.STRING)
-    @Column(nullable = false, length = 50)
+    @Column(length = 50)
     private Category category;
 
     // "date" is a reserved word in Oracle, hence the transaction_date column
@@ -73,6 +81,46 @@ public class Transaction {
     @NotNull
     @Column(name = "user_id", nullable = false)
     private Long userId;
+
+    // ------------------------------------------------------------------
+    // -- aporte -- origen (banco/manual), medio de pago, conciliación con
+    // la cartola bancaria, y trazabilidad de cómo se determinó la categoría.
+    // Ver db/oracle/002_manual_entries_and_budget.sql para el ALTER TABLE.
+    // ------------------------------------------------------------------
+
+    @NotNull
+    @Enumerated(EnumType.STRING)
+    @Column(nullable = false, length = 10)
+    private TransactionSource source = TransactionSource.BANK;
+
+    // solo aplica a MANUAL (tarjeta de crédito excluida del MVP a propósito)
+    @Enumerated(EnumType.STRING)
+    @Column(name = "payment_method", length = 10)
+    private PaymentMethod paymentMethod;
+
+    // solo relevante para MANUAL: si coincide con una transacción BANK real
+    // (mismo monto, ventana de 2-3 días), queda AUTOMATIC o USER_CONFIRMED.
+    // EFECTIVO nunca se intenta conciliar -- nunca aparecerá en un banco.
+    @NotNull
+    @Enumerated(EnumType.STRING)
+    @Column(name = "link_status", nullable = false, length = 20)
+    private LinkStatus linkStatus = LinkStatus.UNLINKED;
+
+    @Column(name = "linked_transaction_id")
+    private Long linkedTransactionId;
+
+    // cómo se determinó `category`: mapeo, regla, modelo, fallback, o el
+    // usuario (directamente o corrigiendo una sugerencia)
+    @Enumerated(EnumType.STRING)
+    @Column(name = "category_method", length = 20)
+    private CategoryMethod categoryMethod;
+
+    // probabilidad del modelo cuando categoryMethod == ML_MODEL; null en
+    // cualquier otro caso (no hay una probabilidad real que reportar)
+    @DecimalMin("0.0")
+    @DecimalMax("1.0")
+    @Column(name = "category_confidence")
+    private Double categoryConfidence;
 
     public TransactionType getType() {
         return category == null ? null : category.getType();
