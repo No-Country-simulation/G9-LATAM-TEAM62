@@ -15,6 +15,7 @@ import org.springframework.web.bind.annotation.RequestBody;
 import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RequestParam;
 import org.springframework.web.bind.annotation.RestController;
+import org.springframework.lang.NonNull;
 
 import io.swagger.v3.oas.annotations.Operation;
 import io.swagger.v3.oas.annotations.tags.Tag;
@@ -58,7 +59,7 @@ public class TransactionController {
                     content = @Content(mediaType = "application/json", schema = @Schema(implementation = Transaction.class))),
             @ApiResponse(responseCode = "404", description = "Transacción no encontrada")
     })
-    public ResponseEntity<Transaction> findById(@PathVariable Long id) {
+    public ResponseEntity<Transaction> findById(@PathVariable @NonNull Long id) {
         return service.findById(id)
                 .map(ResponseEntity::ok)
                 .orElse(ResponseEntity.notFound().build());
@@ -96,7 +97,7 @@ public class TransactionController {
     })
     public ResponseEntity<com.g9latam.team62.fintech_api.dto.StatementIngestionResult> uploadStatement(
             @RequestParam("file") org.springframework.web.multipart.MultipartFile file,
-            @RequestParam("userId") Long userId,
+            @RequestParam("userId") @NonNull Long userId,
             @RequestParam(value = "defaultYear", required = false) Integer defaultYear,
             @RequestParam(value = "country", required = false) String country) {
         com.g9latam.team62.fintech_api.dto.StatementIngestionResult result =
@@ -111,7 +112,7 @@ public class TransactionController {
                     content = @Content(mediaType = "application/json", schema = @Schema(implementation = Transaction.class))),
             @ApiResponse(responseCode = "404", description = "Transacción no encontrada")
     })
-    public ResponseEntity<Transaction> update(@PathVariable Long id, @Valid @RequestBody Transaction transaction) {
+    public ResponseEntity<Transaction> update(@PathVariable @NonNull Long id, @Valid @RequestBody Transaction transaction) {
         if (service.findById(id).isEmpty()) {
             return ResponseEntity.notFound().build();
         }
@@ -130,7 +131,7 @@ public class TransactionController {
             @ApiResponse(responseCode = "400", description = "Datos de entrada inválidos")
     })
     public ResponseEntity<Transaction> updateCategory(
-            @Parameter(description = "ID de la transacción a corregir") @PathVariable Long id,
+            @Parameter(description = "ID de la transacción a corregir") @PathVariable @NonNull Long id,
             @Valid @RequestBody CategoryCorrectionRequest request) {
         if (service.findById(id).isEmpty()) {
             return ResponseEntity.notFound().build();
@@ -145,7 +146,7 @@ public class TransactionController {
             @ApiResponse(responseCode = "204", description = "Transacción eliminada con éxito"),
             @ApiResponse(responseCode = "404", description = "Transacción no encontrada")
     })
-    public ResponseEntity<Void> delete(@PathVariable Long id) {
+    public ResponseEntity<Void> delete(@PathVariable @NonNull Long id) {
         if (service.findById(id).isEmpty()) {
             return ResponseEntity.notFound().build();
         }

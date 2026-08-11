@@ -13,11 +13,23 @@ import lombok.NoArgsConstructor;
 import java.math.BigDecimal;
 import java.time.LocalDateTime;
 
+import jakarta.persistence.Entity;
+import jakarta.persistence.GeneratedValue;
+import jakarta.persistence.GenerationType;
+import jakarta.persistence.Id;
+import jakarta.persistence.Table;
+import jakarta.persistence.Enumerated;
+import jakarta.persistence.EnumType;
+
+@Entity
+@Table(name = "users")
 @Data
 @NoArgsConstructor
 @AllArgsConstructor
 public class User {
 
+    @Id
+    @GeneratedValue(strategy = GenerationType.IDENTITY)
     private Long id;
 
     @NotBlank
@@ -36,10 +48,12 @@ public class User {
     @PositiveOrZero
     private BigDecimal monthlyIncome;
 
+    @Enumerated(EnumType.STRING)
     private SavingFrequency savingFrequency;
 
     // financialProfile, profileAccuracy and profileUpdatedAt are written by the
     // external profiling app through PUT /api/users/{id}/profile, not by API clients
+    @Enumerated(EnumType.STRING)
     private FinancialProfile financialProfile;
 
     // confidence of the assigned profile, 0.0 to 1.0; null until first computed

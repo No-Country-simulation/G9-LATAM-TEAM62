@@ -10,6 +10,7 @@ import org.springframework.stereotype.Service;
 
 import java.time.LocalDateTime;
 import java.util.Collection;
+import org.springframework.lang.NonNull;
 import java.util.Optional;
 
 @Service
@@ -47,11 +48,11 @@ public class UserService {
         return repository.findAll();
     }
 
-    public Optional<User> findById(Long id) {
+    public Optional<User> findById(@NonNull Long id) {
         return repository.findById(id);
     }
 
-    public User update(Long id, User user) {
+    public User update(@NonNull Long id, User user) {
         User existing = repository.findById(id)
                 .orElseThrow(() -> new IllegalArgumentException("user " + id + " does not exist"));
         requireEmailAvailable(user.getEmail(), id);
@@ -63,7 +64,7 @@ public class UserService {
         return repository.save(user);
     }
 
-    public User updateProfile(Long id, ProfileUpdateRequest request) {
+    public User updateProfile(@NonNull Long id, ProfileUpdateRequest request) {
         User user = repository.findById(id)
                 .orElseThrow(() -> new IllegalArgumentException("user " + id + " does not exist"));
         user.setFinancialProfile(request.financialProfile());
@@ -96,7 +97,7 @@ public class UserService {
         repository.save(user);
     }
 
-    public void delete(Long id) {
+    public void delete(@NonNull Long id) {
         transactionRepository.deleteByUserId(id);
         recommendationRepository.deleteByUserId(id);
         repository.deleteById(id);

@@ -34,3 +34,9 @@ build/
 
 .claude/
 .cp.txt
+
+### Secrets & Wallets ###
+**/Wallet_fintech/
+**/Wallet_fintech.zip
+application-local.properties
+.env

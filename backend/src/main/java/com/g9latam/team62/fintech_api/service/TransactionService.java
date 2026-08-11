@@ -11,7 +11,9 @@ import com.g9latam.team62.fintech_api.model.Transaction;
 import com.g9latam.team62.fintech_api.model.TransactionSource;
 import com.g9latam.team62.fintech_api.repository.TransactionRepository;
 import com.g9latam.team62.fintech_api.repository.UserRepository;
+import org.springframework.lang.NonNull;
 import org.springframework.stereotype.Service;
+
 
 import java.time.LocalDate;
 import java.util.Collection;
@@ -39,7 +41,7 @@ public class TransactionService {
      * automáticamente usando el motor jerárquico de 4 niveles.
      */
     public Transaction create(Transaction transaction) {
-        requireUserExists(transaction.getUserId());
+        requireUserExists( transaction.getUserId());
         transaction.setId(null); // Asignado por el repositorio
 
         if (transaction.getSource() == null) {
@@ -96,7 +98,7 @@ public class TransactionService {
      * Al corregir la categoría, se actualiza la tabla de mapeos colaborativos para que
      * futuras transacciones con la misma descripción se clasifiquen instantáneamente (Nivel 1).
      */
-    public Transaction updateCategory(Long id, Category newCategory) {
+    public Transaction updateCategory(@NonNull Long id, Category newCategory) {
         Transaction transaction = repository.findById(id)
                 .orElseThrow(() -> new IllegalArgumentException("La transacción " + id + " no existe"));
 
@@ -115,7 +117,7 @@ public class TransactionService {
     /**
      * Endpoint alternativo de corrección mediante DTO.
      */
-    public Transaction correctCategory(Long id, CategoryCorrectionRequest request) {
+    public Transaction correctCategory(@NonNull Long id, CategoryCorrectionRequest request) {
         return updateCategory(id, request.category());
     }
 
@@ -123,7 +125,7 @@ public class TransactionService {
         return repository.findAll();
     }
 
-    public Optional<Transaction> findById(Long id) {
+    public Optional<Transaction> findById(@NonNull Long id) {
         return repository.findById(id);
     }
 
@@ -131,18 +133,18 @@ public class TransactionService {
         return repository.findByUserId(userId);
     }
 
-    public Transaction update(Long id, Transaction transaction) {
+    public Transaction update(@NonNull Long id, Transaction transaction) {
         requireUserExists(transaction.getUserId());
         transaction.setId(id);
         return repository.save(transaction);
     }
 
-    public void delete(Long id) {
+    public void delete(@NonNull Long id) {
         repository.deleteById(id);
     }
 
     private void requireUserExists(Long userId) {
-        if (userRepository.findById(userId).isEmpty()) {
+        if (userRepository.findById(java.util.Objects.requireNonNull(userId, "userId is required")).isEmpty()) {
             throw new IllegalArgumentException("El usuario " + userId + " no existe");
         }
     }

@@ -1,136 +1,211 @@
-**Proyecto:** Finance AI – Asistente Inteligente de Salud Financiera
+# **Proyecto:** Finance AI – Asistente Inteligente de Salud Financiera
 
-**Revisión:** [ 2 ]
-**Fecha:** 02 - 08 - 2026
+**Revisión:** 4 | **Fecha:** 10 - 08 - 2026
 
 ## Ficha del documento
-| **Fecha** | **Revisión** | **Autor** | **Modificación** |
-| ------ | ------ | ------ | ------ |
-| *23 / 07 / 26* | *1* | *Equipo Finance AI* | *Creación del documento ERS integrando el resumen del backend, arquitectura OCI y requerimientos del Hackathon ONE.* |
-| *02 / 08 / 26* | *2* | *Equipo Finance AI* | *Incorporación de especificación técnica de Autenticación Stateless JWT y Motor de Clasificación Jerárquico de 4 Niveles con Aprendizaje Colaborativo.* |
+
+| Fecha | Rev. | Autor | Modificación |
+| --- | --- | --- | --- |
+| *23/07/26* | 1 | G9-LATAM-Team 62 | Creación ERS: backend, arquitectura OCI y reqs Hackathon ONE. |
+| *29/07/26* | 2 | G9-LATAM-Team 62 | Actualización de estado de infraestructura: Confirmación de instancia OCI Compute y Oracle Autonomous DB ya aprovisionadas y desplegadas. |
+| *02/08/26* | 3 | G9-LATAM-Team 62 | Especificación técnica de JWT y Motor de Clasificación de 4 Niveles. |
+| *10/08/26* | 4 | G9-LATAM-Team 62 | **Integración de Ingesta Automatizada de Cartolas (Python CLI Multi-formato), Motor de Recomendaciones Presupuestarias (Benchmarking INE Chile), Registro Manual & Medios de Pago, Historial de Perfil Financiero y Extensión del Modelo de Datos.** |
 
 ---
 
 ## 1. Introducción
-Este documento presenta el registro y la definición de los requisitos para el desarrollo del proyecto **Finance AI**, una solución orientada a mejorar la salud financiera de los usuarios. Se incluyen los requisitos, características del modelo de datos, detalles del backend, seguridad y la arquitectura de infraestructura en la nube.
 
-### 1.1. Propósito
-El propósito de este documento es detallar los requisitos de **"Finance AI"**, una solución inteligente capaz de **analizar el comportamiento financiero de un usuario a partir de sus transacciones e información financiera**. El sistema busca organizar gastos, identificar hábitos, clasificar automáticamente transacciones, determinar el perfil financiero y entregar recomendaciones simples para mejorar la gestión del dinero. 
+### 1.1. Propósito y Ámbito (MVP)
 
-### 1.2. Ámbito del Sistema
-El proyecto corresponde a un **Asistente Inteligente de Salud Financiera** desarrollado como un Producto Mínimo Viable (MVP).
-**Funciones principales del sistema:**
-*   Obtención de datos financieros (ingresos, nivel de endeudamiento) y transacciones a través de las **cartolas de los clientes** (PDF y Excel).
-*   **Clasificación automática e inteligente de gastos** mediante una cadena jerárquica de 4 niveles (coincidencias aprendidas en BD, reglas por palabras clave, inferencia de modelos ML y fallback por defecto).
-*   **Aprendizaje continuo y colaborativo (Crowdsourcing):** El sistema aprende automáticamente cada vez que un usuario corrige una categoría de transacción.
-*   **Autenticación Stateless mediante tokens JWT** (JSON Web Tokens) y cifrado BCrypt de contraseñas.
-*   Evaluación y clasificación del perfil financiero del usuario (*SAVER*, *BALANCED*, *SPENDER*, *AT_RISK*).
-*   Generación de recomendaciones financieras personalizadas y accionables.
-*   Disposición de los resultados a través de una **API REST documentada en Swagger/OpenAPI**.
+Solución inteligente que analiza la salud financiera del usuario a partir de sus transacciones y cartolas bancarias.
 
-### 1.3. Definiciones, Acrónimos y Abreviaturas
-*   **API REST:** Interfaz de Programación de Aplicaciones basada en el protocolo HTTP.
-*   **JWT:** JSON Web Token, estándar para la autenticación segura y sin estado (stateless).
-*   **BCrypt:** Algoritmo de hashing seguro utilizado para proteger las contraseñas de los usuarios.
-*   **Crowdsourcing / Feedback:** Mecanismo de aprendizaje colaborativo donde las correcciones de los usuarios realimentan el sistema.
-*   **OCI:** Oracle Cloud Infrastructure, la nube donde se desplegará el sistema.
-*   **VCN:** Virtual Cloud Network, red virtual principal que aislará los recursos en OCI.
-*   **MVP:** Producto Mínimo Viable.
-*   **EDA:** Exploración y limpieza de datos (Exploratory Data Analysis).
-*   **Cartola:** Documento bancario en PDF y Excel que registra los movimientos y transacciones de un cliente.
+* **Funciones principales del sistema:**
+  * **Ingesta Automatizada de Cartolas Multi-formato:** Procesamiento y extracción de transacciones desde archivos PDF, Excel (`.xlsx`, `.xls`) y CSV de múltiples entidades bancarias mediante integración híbrida Java-Python (`procesar_cartola_cli.py`).
+  * **Clasificación Jerárquica de 4 Niveles:** Auto-clasificación de gastos integrando coincidencia exacta en BD (Mapeos colaborativos), reglas heurísticas de palabras clave (Keywords), inferencia con modelos de Machine Learning (Scikit-Learn/XGBoost) y fallback por defecto con registro trazable de scores de confianza (`category_confidence`) y método resolutor (`CategoryMethod`).
+  * **Aprendizaje Continuo y Colaborativo (Crowdsourcing / Feedback Loop):** Retroalimentación en tiempo real cuando el usuario corrige manualmente una categoría (`PUT /api/transactions/{id}/category`), actualizando las reglas globales para beneficio de todos los usuarios y generando datasets auditados para reentrenamiento de Data Science.
+  * **Motor de Recomendaciones Presupuestarias & Analítica (Benchmarking INE Chile):** Comparación estadística del consumo del usuario contra la IX Encuesta de Presupuestos Familiares del INE (Chile), filtrado inteligente de transferencias internas, cálculo de la tasa de ahorro y control de cooldown (máximo 3 sugerencias por corrida, 7 días de enfriamiento).
+  * **Registro Manual & Medios de Pago:** Capacidad de ingresar movimientos no bancarizados especificando el medio de pago (*CASH*, *DEBIT*, *CREDIT*) y origen (*BANK*, *MANUAL*).
+  * **Trazabilidad de Historial de Perfil Financiero:** Auditoría histórica de cambios de perfil (*SAVER*, *BALANCED*, *SPENDER*, *AT_RISK*) y nivel de precisión en el tiempo.
+  * **Autenticación Stateless JWT & API REST:** Seguridad mediante Spring Security, tokens JWT Bearer, hashing BCrypt y documentación interactiva mediante Swagger/OpenAPI.
 
-### 1.4. Referencias
-*   Hackathon ONE – Proyectos G9 | Alura + Oracle.
-*   Documentación de Spring Boot 4.1, Spring Security y JJWT (Java JWT).
-*   Diseño de Arquitectura de 3 capas en OCI.
+### 1.2. Glosario
+
+* **JWT / BCrypt:** Estándar de tokens stateless (JSON Web Token) y hashing criptográfico seguro de contraseñas.
+* **Crowdsourcing / Feedback Loop:** Aprendizaje continuo colaborativo alimentado por las correcciones directas de los usuarios.
+* **INE Chile:** Instituto Nacional de Estadísticas de Chile; fuente oficial de la Encuesta de Presupuestos Familiares para benchmarking financiero.
+* **ProcessBuilder:** API de Java para la ejecución segura de subprocesos aislados en el sistema operativo (invocación de CLI Python).
+* **CategoryMethod:** Enumeración que identifica el mecanismo resolutor de la categoría (*EXACT_MAPPING*, *KEYWORD_RULE*, *ML_MODEL*, *FALLBACK*, *USER_PROVIDED*, *USER_CORRECTED*).
+* **OCI / VCN:** Oracle Cloud Infrastructure y Red Virtual Nube (Virtual Cloud Network).
+* **Cartola:** Documento bancario (PDF, Excel o CSV) que registra el estado de cuenta y movimientos de un cliente.
 
 ---
 
-## 2. Descripción General
+## 2. Descripción General y Arquitectura
 
-### 2.1. Perspectiva del Producto
-El sistema se concibe bajo una **arquitectura de 3 capas en OCI** desplegada dentro de una VCN, separando la entrada de red, la lógica de negocio y el almacenamiento para garantizar seguridad y alto rendimiento:
-*   **Capa 1: Entrada de Red (Subred Pública):** Expuesta a usuarios y aplicaciones cliente. Utiliza un *Internet Gateway* y un *Load Balancer Público* para distribuir el tráfico. Incluye recursos estáticos del dashboard.
-*   **Capa 2: Aplicación y Lógica de Negocio (Subred Privada):** Aislada de internet. Contiene máquinas virtuales (*OCI Compute*) que alojan la API REST en Spring Boot 4.1 con Spring Security + JWT. Incluye un *NAT Gateway* para que los servidores descarguen dependencias bloqueando el tráfico entrante malicioso.
-*   **Capa 3: Datos y Almacenamiento (Subred Privada):** Completamente aislada, solo recibe peticiones de la Capa 2. Utiliza *Oracle Autonomous Database* (para perfiles, usuarios, transacciones, mapeos de categorías y palabras clave) y *OCI Object Storage* (para guardar los modelos de ML serializados).
+### 2.1. Arquitectura de 3 Capas en OCI con Integración Híbrida Python
 
-### 2.2. Funciones del Producto
-El núcleo del sistema expone servicios para:
-1.  **Autenticación y Seguridad (`/api/auth`):** Registro (`/register`), inicio de sesión (`/login`) con generación de token JWT bearer de corta/mediana duración, y cambio seguro de contraseña (`/change-password`).
-2.  **Conversión de Cartolas (`/api/converter/pdf-to-excel`):** Carga de cartolas bancarias en PDF, extracción de texto (Apache PDFBox) y conversión a hoja de cálculo (.xlsx).
-3.  **Gestión y Clasificación de Transacciones (`/api/transactions`):**
-    *   `POST /api/transactions`: Registro de transacciones con auto-clasificación mediante el motor de 4 niveles.
-    *   `PUT /api/transactions/{id}/category`: Corrección de categoría por parte del usuario y disparo del aprendizaje por retroalimentación en tiempo real.
-4.  **Perfilamiento Financiero y Recomendaciones (`/api/users`, `/api/recommendations`):** Cálculo del perfil financiero del usuario y generación de recomendaciones personalizadas.
+Toda la infraestructura base en Oracle Cloud Infrastructure se encuentra **aprovisionada, operativa y desplegada**:
+
+```
+[ Cliente API / Frontend ]
+          │
+          ├── HTTP / REST (JWT Bearer Token)
+          ▼
+┌────────────────────────────────────────────────────────────────────────┐
+│ Capa 1 (Subred Pública OCI)                                           │
+│ Internet Gateway ──► Load Balancer Público ──► Static Dashboard Assets │
+└───────────────────────────────────┬────────────────────────────────────┘
+                                    │
+                                    ▼
+┌────────────────────────────────────────────────────────────────────────┐
+│ Capa 2 (Subred Privada - Aplicación & Lógica de Negocio)               │
+│ Instancia OCI Compute:                                                 │
+│   ├── API REST Spring Boot 4.1 + Spring Security + JWT                 │
+│   ├── StatementIngestionService ──(ProcessBuilder)──► Python CLI       │
+│   │                                            (procesar_cartola_cli)  │
+│   ├── CategoryClassifierService (Motor 4 Niveles + Feedback Loop)       │
+│   └── BudgetRecommendationService (Benchmarking INE Chile + Cooldown)  │
+│ NAT Gateway para salidas requeridas y parches.                         │
+└───────────────────────────────────┬────────────────────────────────────┘
+                                    │
+                                    ▼
+┌────────────────────────────────────────────────────────────────────────┐
+│ Capa 3 (Subred Privada - Datos & Persistencia)                         │
+│   ├── Oracle Autonomous Database (Users, Transactions, Mappings,       │
+│   │   Keywords, Budget Targets INE, Profile History)                  │
+│   └── OCI Object Storage (Artefactos y Modelos de ML serializados)     │
+└────────────────────────────────────────────────────────────────────────┘
+```
+
+* **Capa 1 (Subred Pública):** Internet Gateway, Load Balancer Público y assets del dashboard.
+* **Capa 2 (Subred Privada - Aplicación):** Instancia *OCI Compute* alojando la API REST en Spring Boot 4.1 + Spring Security + JWT. Incluye el módulo de orquestación de subprocesos Python (`procesar_cartola_cli.py` mediante `ProcessBuilder`) y NAT Gateway para conexiones externas seguras.
+* **Capa 3 (Subred Privada - Datos):** *Oracle Autonomous Database* provista para la persistencia de usuarios, transacciones, reglas colaborativas, metas presupuestarias INE e historial de perfiles, junto a *OCI Object Storage* para artefactos y modelos de Machine Learning.
+
+### 2.2. Módulos API REST
+
+1. **Autenticación y Seguridad (`/api/auth`):**
+   * `POST /api/auth/register`: Registro de usuarios.
+   * `POST /api/auth/login`: Autenticación y generación de token JWT Bearer.
+   * `PUT /api/auth/change-password`: Cambio seguro de contraseña.
+2. **Ingesta y Transacciones (`/api/transactions`):**
+   * `POST /api/transactions/upload-statement`: Carga multipart de cartolas bancarias (PDF, XLSX, XLS, CSV) y procesamiento automatizado con Python CLI.
+   * `POST /api/transactions/manual`: Registro de transacciones manuales (efectivo, débito, crédito).
+   * `GET /api/transactions` & `GET /api/transactions/{id}`: Consulta de movimientos del usuario.
+   * `PUT /api/transactions/{id}/category`: Corrección de categoría por parte del usuario y disparo del aprendizaje por retroalimentación en tiempo real (`learnFromFeedback`).
+3. **Analítica y Recomendaciones Presupuestarias (`/api/recommendations`):**
+   * `POST /api/recommendations/generate`: Evaluación de gastos por período contra el benchmark del INE Chile, filtrado de transferencias internas y generación de sugerencias con control de cooldown.
+   * `GET /api/recommendations/user/{userId}`: Historial de recomendaciones del usuario.
+4. **Perfilamiento y Trazabilidad (`/api/users`):**
+   * `GET /api/users/{userId}`: Perfil actual del usuario (*SAVER*, *BALANCED*, *SPENDER*, *AT_RISK*).
+   * `GET /api/users/{userId}/profile-history`: Historial de cambios de perfil y precisión en el tiempo.
 
 ---
 
-## 3. Especificación Técnica de Componentes Clave
+## 3. Especificación Técnica
 
-### 3.1. Autenticación y Seguridad JWT
-El sistema utiliza una arquitectura de seguridad sin estado (**Stateless Authentication**) basada en **Spring Security** y **JJWT** (`jjwt-api`, `jjwt-impl`, `jjwt-jackson`):
+### 3.1. Autenticación Stateless JWT
 
-*   **Filtro de Autenticación (`JwtAuthenticationFilter`):** Intercepta cada petición HTTP entrante, extrae el token del encabezado `Authorization: Bearer <token>`, valida la firma criptográfica y la fecha de expiración mediante `JwtService`, y establece la autenticación en el `SecurityContextHolder`.
-*   **Contraseñas Seguras:** Las contraseñas se almacenan cifradas con **BCrypt** (`BCryptPasswordEncoder`) y están configuradas como `WRITE_ONLY` en las respuestas JSON para evitar fugas de información.
-*   **Rutas Públicas vs Protegidas:**
-    *   **Públicas (sin token):** `/api/auth/**` (login, registro), `/api/converter/**` (conversión PDF), Swagger UI (`/swagger-ui/**`, `/v3/api-docs/**`).
-    *   **Protegidas (requieren token Bearer):** Endpoints de transacciones, perfiles y recomendaciones.
+* **Filtro (`JwtAuthenticationFilter`):** Intercepta cada petición HTTP, extrae el token del encabezado `Authorization: Bearer <token>`, valida la firma criptográfica con `JwtService` y establece el objeto `Authentication` en el `SecurityContextHolder`.
+* **Seguridad de Contraseñas:** Contraseñas cifradas con **BCrypt** (`BCryptPasswordEncoder`) y declaradas como `WRITE_ONLY` en DTOs.
+* **Control de Accesos:** Rutas públicas (`/api/auth/**`, Swagger UI `/swagger-ui/**`) vs. Rutas protegidas (requieren token Bearer activo).
 
 ---
 
-### 3.2. Motor de Clasificación Jerárquico (4 Niveles) y Aprendizaje Colaborativo
+### 3.2. Ingesta Automatizada de Cartolas (Python CLI Integration)
 
-Cada transacción con descripción ingresada al sistema se procesa secuencialmente a través de un motor de clasificación (`CategoryClassifierService`):
+Para procesar heterogéneos formatos de cartolas bancarias sin recargar el núcleo Java, el servicio `StatementIngestionService` interactúa con un ejecutable Python aislado (`procesar_cartola_cli.py`):
 
-1.  **Normalización de Texto (`TextNormalizer`):**
-    *   Convierte el texto a mayúsculas.
-    *   Remueve tildes y caracteres diacríticos (ej. `á` $\rightarrow$ `A`, `ñ` $\rightarrow$ `N`).
-    *   Elimina números, RUTs, fechas, identificadores de sucursal y secuencias de operación variables.
-    *   Colapsa espacios múltiples y aplica `.trim()`.
-    *   *Ejemplo:* `"COMPRA JUMBO PROVIDENCIA 1234"` $\rightarrow$ `"COMPRA JUMBO PROVIDENCIA"`.
+1. **Flujo de Ejecución:**
+   * El cliente realiza un `POST /api/transactions/upload-statement` enviando un archivo multipart.
+   * `StatementIngestionService` genera un archivo temporal en disco (`cartola_XXXX.tmp`).
+   * Se ejecuta mediante `ProcessBuilder` el comando:
+     ```bash
+     python backend/scripts/procesar_cartola_cli.py <ruta_temp> --anio-defecto 2026 --pais CL
+     ```
+2. **Capacidades del Script Python:**
+   * **Detección de Banco Origen:** Reconocimiento automático de patrones de encabezado y tablas para *Banco de Chile*, *Santander*, *CuentaRUT / BancoEstado*, *Banco Falabella*, *Mercado Pago*, *BCI*, *Itaú* y *Scotiabank*.
+   * **Parsing Vectorial y Tabular:** Utiliza `pdfplumber` para la extracción de tablas en PDF basadas en coordenadas físicas y bordes vectoriales; utiliza `pandas` y `openpyxl` para hojas de cálculo Excel (`.xlsx`, `.xls`) y CSV.
+   * **Normalización de Datos:** Limpieza de montos (remoción de puntos/comas, formateo de paréntesis contables `(100)` $\rightarrow$ `-100`), normalización de fechas y detección de días festivos mediante la librería `holidays`.
+   * **Salida Estandarizada:** Emisión en `stdout` de un objeto JSON estructurado conteniendo conteo de filas válidas/descartadas, advertencias y la lista de transacciones parseadas.
+3. **Limpieza Garantizada:** El archivo temporal en disco se elimina indefectiblemente en el bloque `finally` del servicio Spring Boot.
 
-2.  **Cadena de Clasificación de 4 Niveles:**
-    *   **Nivel 1 (Mapeo Colaborativo - BD):** Busca coincidencia exacta contra la tabla `transaction_category_mappings`. Si existe un patrón validado previamente por usuarios, asigna la categoría con nivel de confianza `1.0`.
-    *   **Nivel 2 (Reglas por Palabras Clave - BD):** Busca si la descripción normalizada contiene alguna palabra clave registrada en la tabla `category_keywords` (ej. `"JUMBO"` $\rightarrow$ `FOOD`, `"METRO"` $\rightarrow$ `TRANSPORT`). Asigna la categoría con confianza `0.9`.
-    *   **Nivel 3 (Modelo ML - Ciencia de Datos):** Si no hay coincidencias anteriores, invoca el servicio de inferencia `MlInferenceService` (modelo Scikit-Learn). Si el nivel de confianza reportado es $\ge 0.60$, asigna la categoría predicha.
-    *   **Nivel 4 (Fallback por Defecto):** Si ningún nivel anterior resuelve la clasificación, asigna por defecto `OTHER_EXPENSE` (Confianza `0.0`).
+---
 
-3.  **Ciclo de Retroalimentación en Tiempo Real (`learnFromFeedback`):**
-    *   Al ejecutar `PUT /api/transactions/{id}/category`, el usuario corrige la categoría sugerida.
-    *   El sistema actualiza la transacción del usuario y ejecuta `learnFromFeedback()`, guardando o actualizando el patrón normalizado en `transaction_category_mappings` e incrementando su contador de frecuencia (`frequency`).
-    *   Esta corrección beneficia inmediatamente a todos los usuarios, ya que futuras transacciones con la misma descripción se clasificarán instantáneamente en el **Nivel 1**.
+### 3.3. Motor Jerárquico de Clasificación de 4 Niveles y Aprendizaje Colaborativo
+
+Procesamiento ordenado de descripciones mediante `CategoryClassifierService` y `TextNormalizer`:
+
+1. **Normalización (`TextNormalizer`):** Conversión a mayúsculas, eliminación de tildes/diacríticos, remoción de RUTs, fechas, números de operación y secuencias variables, colapsando espacios múltiples.
+2. **Cadena de 4 Niveles con Trazabilidad:**
+
+| Nivel | Componente / Mecanismo | Origen | Descripción / Criterio | Confianza (`categoryConfidence`) | Método (`CategoryMethod`) |
+| :---: | :--- | :---: | :--- | :---: | :---: |
+| **N1** | **Mapeo Colaborativo (BD)** | Base de Datos | Coincidencia exacta con patrones en `transaction_category_mappings` aprendidos por retroalimentación de usuarios. | `1.0` | `EXACT_MAPPING` |
+| **N2** | **Reglas de Keywords (BD)** | Base de Datos | Búsqueda parcial de palabras clave en `category_keywords` (>150 keywords registradas). | `0.9` | `KEYWORD_RULE` |
+| **N3** | **Modelo ML Supervisado** | Microservicio ML | Inferencia vía `MlInferenceService` (Scikit-Learn/XGBoost) si la confianza devuelta es $\ge 0.60$. | Variable ($\ge 0.60$) | `ML_MODEL` |
+| **N4** | **Fallback Jerárquico** | Backend | Asignación por defecto a `OTHER_EXPENSE` u `OTHER_INCOME` si ningún nivel anterior superó los umbrales. | `0.0` | `FALLBACK` |
+
+3. **Ciclo de Aprendizaje Continuo (`learnFromFeedback`):**
+   * Al ejecutar `PUT /api/transactions/{id}/category`, se actualiza la categoría de la transacción y se invoca `learnFromFeedback()`.
+   * El sistema inserta o actualiza el patrón normalizado en `transaction_category_mappings` e incrementa su contador de frecuencia (`frequency`).
+   * **Impacto Inmediato:** Futuras transacciones idénticas ingresadas por **cualquier usuario** se clasificarán instantáneamente en **Nivel 1**.
+   * **Auditoría para Reentrenamiento:** La transacción mantiene registro de la categoría original predicha vs. la corregida por el usuario, consolidando datasets auditables para el reentrenamiento offline de los modelos de Data Science.
+
+---
+
+### 3.4. Motor de Recomendaciones Presupuestarias y Analítica (INE Chile)
+
+El servicio `BudgetRecommendationService` aplica análisis estadístico comparativo para promover la salud financiera:
+
+1. **Benchmarking Gubernamental (INE Chile):** Compara los porcentajes de gasto mensual del usuario por categoría contra la **IX Encuesta de Presupuestos Familiares del INE (Chile)** almacenados en `category_budget_targets`:
+   * *Alimentos y Bebidas (`FOOD`):* Meta 21.3%
+   * *Vivienda (`HOUSING`):* Meta 14.5%
+   * *Transporte (`TRANSPORT`):* Meta 14.1%
+   * *Servicios Básicos (`UTILITIES`):* Meta 6.2%
+   * *Salud (`HEALTH`):* Meta 7.4%
+   * *Educación (`EDUCATION`):* Meta 6.5%
+   * *Entretenimiento (`ENTERTAINMENT`):* Meta 5.1%
+   * *Compras y Vestuario (`SHOPPING`):* Meta 4.8%
+2. **Filtrado Inteligente de Ruido:** Excluye automáticamente transferencias internas y giros mediante expresiones regulares (`TRANSF`, `TEF`, `GIRO`, `PAGO DE TARJETA`) para no distorsionar la medición del consumo real.
+3. **Evaluación de Tasa de Ahorro:** Mide la capacidad de ahorro del período comparándola contra el objetivo recomendado del 20% (`TARGET_SAVINGS_RATE = 0.20`).
+4. **Control de Cooldown y Límites:**
+   * Generación máxima de 3 sugerencias prioritarias por corrida (`MAX_RECOMMENDATIONS_PER_RUN = 3`).
+   * Período de enfriamiento (*cooldown*) de 7 días entre evaluaciones para evitar la saturación de alertas al usuario.
 
 ---
 
 ## 4. Requisitos Específicos y Modelo de Datos
 
-### 4.1 Modelo de Datos (Esquema Lógico)
-El almacenamiento se estructura en las siguientes tablas en Oracle Autonomous Database / H2:
+### 4.1. Esquema Lógico de Datos (En Oracle Autonomous DB)
 
-*   **`users`:** Almacena usuarios (`id`, `name`, `email`, `password` en hash BCrypt, `monthly_income`, `saving_frequency`, `financial_profile`, `profile_accuracy`, `profile_updated_at`).
-*   **`transactions`:** Almacena los movimientos bancarios (`id`, `description`, `operation_number`, `amount`, `category`, `transaction_date`, `currency_id`, `balance_after`, `user_id`).
-*   **`recommendations`:** Almacena los consejos generados (`id`, `text`, `generated_at`, `profile_at_generation`, `user_id`).
-*   **`transaction_category_mappings`:** Almacena los patrones aprendidos por feedback (`id`, `description_pattern`, `category`, `frequency`).
-*   **`category_keywords`:** Almacena el diccionario dinámico de palabras clave (`id`, `keyword`, `category`).
-*   **Catálogos (Enums):**
-    *   `financial_profile`: *SAVER*, *BALANCED*, *SPENDER*, *AT_RISK*.
-    *   `saving_frequency`: *NEVER*, *RARELY*, *MONTHLY*, *BIWEEKLY*, *WEEKLY*, *DAILY*.
-    *   `transaction_category`: *FOOD*, *TRANSPORT*, *HOUSING*, *UTILITIES*, *ENTERTAINMENT*, *HEALTH*, *EDUCATION*, *SHOPPING*, *SALARY*, *INVESTMENT*, *SAVINGS*, *OTHER_INCOME*, *OTHER_EXPENSE*.
-    *   `transaction_type`: *INCOME*, *EXPENSE*, *SAVING*.
-
----
-
-### 4.2 Requisitos Funcionales
-*   **RF1 - Autenticación JWT:** Registro de usuarios, inicio de sesión seguro devolviendo token JWT y protección de endpoints privados.
-*   **RF2 - Extracción de Cartolas:** Conversión de cartolas bancarias en formato PDF a formato Excel mediante Apache PDFBox y Apache POI.
-*   **RF3 - Clasificación Inteligente:** Clasificar automáticamente transacciones mediante la cadena jerárquica de 4 niveles.
-*   **RF4 - Retroalimentación y Aprendizaje:** Permitir la corrección de categorías (`PUT /api/transactions/{id}/category`) y actualizar el catálogo de patrones aprendidos en tiempo real.
-*   **RF5 - Análisis y Perfil Financiero:** Determinar el perfil financiero del usuario y generar recomendaciones personalizadas.
+* **`users`:** `id`, `name`, `email`, `password` (BCrypt), `monthly_income`, `saving_frequency`, `financial_profile`, `profile_accuracy`, `profile_updated_at`.
+* **`transactions`:** `id`, `description`, `operation_number`, `amount`, `category`, `transaction_date`, `currency_id`, `balance_after`, `user_id`, `source` (*BANK*, *MANUAL*), `payment_method` (*CASH*, *DEBIT*, *CREDIT*), `bank_name`, `category_method` (*EXACT_MAPPING*, *KEYWORD_RULE*, *ML_MODEL*, *FALLBACK*, *USER_PROVIDED*, *USER_CORRECTED*), `category_confidence`.
+* **`recommendations`:** `id`, `text`, `generated_at`, `profile_at_generation`, `user_id`.
+* **`category_budget_targets`:** `id`, `category`, `target_percentage`, `description`.
+* **`financial_profile_history`:** `id`, `user_id`, `financial_profile`, `profile_accuracy`, `created_at`.
+* **`transaction_category_mappings`:** `id`, `description_pattern`, `category`, `frequency`.
+* **`category_keywords`:** `id`, `keyword`, `category`.
+* **Enums y Catálogos:**
+  * `financial_profile`: *SAVER*, *BALANCED*, *SPENDER*, *AT_RISK*.
+  * `transaction_category`: *FOOD*, *TRANSPORT*, *HOUSING*, *UTILITIES*, *ENTERTAINMENT*, *HEALTH*, *EDUCATION*, *SHOPPING*, *SALARY*, *SAVINGS*, *INVESTMENT*, *OTHER_INCOME*, *OTHER_EXPENSE*.
+  * `transaction_type`: *INCOME*, *EXPENSE*, *SAVING*.
+  * `TransactionSource`: *BANK*, *MANUAL*.
+  * `PaymentMethod`: *CASH*, *DEBIT*, *CREDIT*.
+  * `CategoryMethod`: *EXACT_MAPPING*, *KEYWORD_RULE*, *ML_MODEL*, *FALLBACK*, *USER_PROVIDED*, *USER_CORRECTED*.
 
 ---
 
-### 4.3 Requisitos No Funcionales
-*   **RNF1 - Seguridad Stateless y Cifrado:** Uso de Spring Security con JWT para autenticación sin sesión de servidor y contraseñas hasheadas con BCrypt.
-*   **RNF2 - Escalabilidad de Reglas:** Almacenamiento de palabras clave en la tabla `category_keywords` de la base de datos en lugar de código Java hardcodeado, permitiendo gestión dinámica sin redesplegar.
-*   **RNF3 - Disponibilidad en OCI:** Despliegue en arquitectura de 3 capas aislada en subredes privada y pública en Oracle Cloud Infrastructure.
-*   **RNF4 - Documentación API:** Documentación completa de endpoints con Swagger UI en `/swagger-ui.html`.
+### 4.2. Requisitos Funcionales y No Funcionales
+
+* **RF1 - Autenticación JWT:** Registro, inicio de sesión seguro devolviendo token JWT Bearer y protección de rutas.
+* **RF2 - Ingesta Cartolas Multi-formato:** Carga y extracción automatizada de movimientos bancarios en PDF, Excel y CSV mediante subproceso Python CLI (`procesar_cartola_cli.py`).
+* **RF3 - Clasificación Jerárquica & Trazabilidad:** Auto-clasificación en 4 niveles registrando score de confianza y método resolutor.
+* **RF4 - Retroalimentación y Aprendizaje Colaborativo:** Corrección de categorías por usuario (`PUT /api/transactions/{id}/category`) alimentando las reglas globales N1 y datasets de Data Science.
+* **RF5 - Motor de Recomendaciones Presupuestarias (INE Chile):** Generación de alertas estadísticas basadas en la Encuesta de Presupuestos Familiares del INE con control de cooldown (7 días, máx 3 alertas).
+* **RF6 - Transacciones Manuales & Medios de Pago:** Registro manual de egresos/ingresos no bancarizados especificando medio de pago (*CASH*, *DEBIT*, *CREDIT*).
+* **RF7 - Historial de Perfil Financiero:** Auditoría histórica de la evolución del perfil de salud financiera del usuario.
+* **RNF1 - Seguridad Stateless y Cifrado:** Spring Security + JWT y passwords hasheadas con BCrypt (`WRITE_ONLY`).
+* **RNF2 - Escalabilidad Dinámica:** Gestión de reglas de palabras clave y metas INE en BD sin necesidad de redespliegue de código.
+* **RNF3 - Infraestructura Cloud OCI:** Despliegue activo en arquitectura de 3 capas aisladas en OCI (Subredes Pública/Privada, OCI Compute y Oracle Autonomous DB).
+* **RNF4 - Integración Híbrida Segura:** Invocación de subprocesos aislados en Java con borrado de temporales garantizado.
+* **RNF5 - Documentación API:** Documentación completa e interactiva mediante Swagger UI (`/swagger-ui/index.html`).

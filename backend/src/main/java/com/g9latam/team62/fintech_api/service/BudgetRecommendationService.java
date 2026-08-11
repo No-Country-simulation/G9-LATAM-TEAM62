@@ -10,6 +10,8 @@ import com.g9latam.team62.fintech_api.repository.CategoryBudgetTargetRepository;
 import com.g9latam.team62.fintech_api.repository.RecommendationRepository;
 import com.g9latam.team62.fintech_api.repository.TransactionRepository;
 import com.g9latam.team62.fintech_api.repository.UserRepository;
+
+import org.springframework.lang.NonNull;
 import org.springframework.stereotype.Service;
 
 import java.math.BigDecimal;
@@ -59,7 +61,7 @@ public class BudgetRecommendationService {
         this.userRepository = userRepository;
     }
 
-    public List<Recommendation> generateRecommendations(Long userId, LocalDate periodStart, LocalDate periodEnd) {
+    public List<Recommendation> generateRecommendations(@NonNull Long userId, LocalDate periodStart, LocalDate periodEnd) {
         User user = userRepository.findById(userId)
                 .orElseThrow(() -> new IllegalArgumentException("El usuario " + userId + " no existe"));
 
@@ -74,7 +76,7 @@ public class BudgetRecommendationService {
 
         Map<Category, BigDecimal> expenseByCategory = sumByCategory(transactions, TransactionType.EXPENSE);
         BigDecimal totalExpense = expenseByCategory.values().stream()
-                .reduce(BigDecimal.ZERO, BigDecimal::add);
+                .reduce(BigDecimal.ZERO, (a, b) -> a.add(b));
         if (totalExpense.signum() == 0) {
             return List.of();
         }
@@ -83,12 +85,12 @@ public class BudgetRecommendationService {
 
         List<Recommendation> created = new ArrayList<>();
         deviations.stream()
-                .sorted(Comparator.comparing(CategoryDeviation::ratio).reversed())
+                .sorted(Comparator.comparing((CategoryDeviation d) -> d.ratio()).reversed())
                 .limit(MAX_RECOMMENDATIONS_PER_RUN)
                 .forEach(d -> created.add(save(user, buildCategoryText(d))));
 
         BigDecimal totalIncome = sumByCategory(transactions, TransactionType.INCOME).values().stream()
-                .reduce(BigDecimal.ZERO, BigDecimal::add);
+                .reduce(BigDecimal.ZERO, (a, b) -> a.add(b));
         buildSavingsTextIfNeeded(totalIncome, totalExpense)
                 .ifPresent(text -> created.add(save(user, text)));
 
@@ -110,7 +112,7 @@ public class BudgetRecommendationService {
             if (isLikelyTransfer(t)) {
                 continue; // Excluye transferencias internas del cálculo de consumo
             }
-            totals.merge(t.getCategory(), t.getAmount(), BigDecimal::add);
+            totals.merge(t.getCategory(), t.getAmount(), (a, b) -> a.add(b));
         }
         return totals;
     }

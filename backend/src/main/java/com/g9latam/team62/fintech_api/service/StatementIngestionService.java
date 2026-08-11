@@ -23,6 +23,7 @@ import java.nio.file.StandardCopyOption;
 import java.time.LocalDate;
 import java.util.ArrayList;
 import java.util.List;
+import org.springframework.lang.NonNull;
 import java.util.concurrent.TimeUnit;
 
 @Service
@@ -41,7 +42,7 @@ public class StatementIngestionService {
         this.classifierService = classifierService;
     }
 
-    public StatementIngestionResult ingestStatement(MultipartFile file, Long userId, Integer defaultYear, String country) {
+    public StatementIngestionResult ingestStatement(MultipartFile file, @NonNull Long userId, Integer defaultYear, String country) {
         if (userRepository.findById(userId).isEmpty()) {
             throw new IllegalArgumentException("El usuario " + userId + " no existe");
         }

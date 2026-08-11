@@ -11,6 +11,7 @@ import io.swagger.v3.oas.annotations.responses.ApiResponses;
 import io.swagger.v3.oas.annotations.tags.Tag;
 import org.springframework.format.annotation.DateTimeFormat;
 import org.springframework.http.ResponseEntity;
+import org.springframework.lang.NonNull;
 import org.springframework.web.bind.annotation.PostMapping;
 import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RequestParam;
@@ -39,7 +40,7 @@ public class RecommendationController {
             @ApiResponse(responseCode = "400", description = "Parámetros inválidos o usuario no encontrado")
     })
     public ResponseEntity<List<Recommendation>> generateRecommendations(
-            @Parameter(description = "ID del usuario") @RequestParam Long userId,
+            @Parameter(description = "ID del usuario") @NonNull @RequestParam Long userId,
             @Parameter(description = "Fecha de inicio del período (YYYY-MM-DD)")
             @RequestParam(required = false) @DateTimeFormat(iso = DateTimeFormat.ISO.DATE) LocalDate periodStart,
             @Parameter(description = "Fecha de término del período (YYYY-MM-DD)")

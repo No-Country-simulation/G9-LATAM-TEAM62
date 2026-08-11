@@ -4,6 +4,14 @@ import lombok.AllArgsConstructor;
 import lombok.Data;
 import lombok.NoArgsConstructor;
 
+import jakarta.persistence.Entity;
+import jakarta.persistence.GeneratedValue;
+import jakarta.persistence.GenerationType;
+import jakarta.persistence.Id;
+import jakarta.persistence.Table;
+import jakarta.persistence.Enumerated;
+import jakarta.persistence.EnumType;
+
 /**
  * Representa un mapeo aprendido entre un patrón de descripción normalizado
  * de transacción y una categoría.
@@ -12,17 +20,22 @@ import lombok.NoArgsConstructor;
  * para que futuras transacciones con la misma descripción se clasifiquen
  * instantáneamente (Nivel 1 de la jerarquía de clasificación).
  */
+@Entity
+@Table(name = "category_mappings")
 @Data
 @NoArgsConstructor
 @AllArgsConstructor
 public class CategoryMapping {
 
+    @Id
+    @GeneratedValue(strategy = GenerationType.IDENTITY)
     private Long id;
 
     /** Descripción normalizada (en mayúsculas, sin tildes, sin números). */
     private String descriptionPattern;
 
     /** Categoría asociada a este patrón. */
+    @Enumerated(EnumType.STRING)
     private Category category;
 
     /** Cantidad de veces que los usuarios han confirmado o establecido este mapeo. */

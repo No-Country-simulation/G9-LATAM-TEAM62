@@ -15,6 +15,7 @@ import org.springframework.web.bind.annotation.PutMapping;
 import org.springframework.web.bind.annotation.RequestBody;
 import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RestController;
+import org.springframework.lang.NonNull;
 
 import io.swagger.v3.oas.annotations.Operation;
 import io.swagger.v3.oas.annotations.tags.Tag;
@@ -51,23 +52,12 @@ public class UserController {
                     content = @Content(mediaType = "application/json", schema = @Schema(implementation = User.class))),
             @ApiResponse(responseCode = "404", description = "Usuario no encontrado")
     })
-    public ResponseEntity<User> findById(@PathVariable Long id) {
+    public ResponseEntity<User> findById(@PathVariable @NonNull Long id) {
         return service.findById(id)
                 .map(ResponseEntity::ok)
                 .orElse(ResponseEntity.notFound().build());
     }
 
-    @PostMapping
-    @Operation(summary = "Crear un nuevo usuario", description = "Crea un usuario con la información proporcionada.")
-    @ApiResponses({
-            @ApiResponse(responseCode = "201", description = "Usuario creado con éxito",
-                    content = @Content(mediaType = "application/json", schema = @Schema(implementation = User.class))),
-            @ApiResponse(responseCode = "400", description = "Datos de entrada inválidos")
-    })
-    public ResponseEntity<User> create(@Valid @RequestBody User user) {
-        User created = service.create(user);
-        return ResponseEntity.status(HttpStatus.CREATED).body(created);
-    }
 
     @PutMapping("/{id}")
     @Operation(summary = "Actualizar usuario", description = "Actualiza toda la información de un usuario existente.")
@@ -76,7 +66,7 @@ public class UserController {
                     content = @Content(mediaType = "application/json", schema = @Schema(implementation = User.class))),
             @ApiResponse(responseCode = "404", description = "Usuario no encontrado")
     })
-    public ResponseEntity<User> update(@PathVariable Long id, @Valid @RequestBody User user) {
+    public ResponseEntity<User> update(@PathVariable @NonNull Long id, @Valid @RequestBody User user) {
         if (service.findById(id).isEmpty()) {
             return ResponseEntity.notFound().build();
         }
@@ -90,7 +80,7 @@ public class UserController {
                     content = @Content(mediaType = "application/json", schema = @Schema(implementation = User.class))),
             @ApiResponse(responseCode = "404", description = "Usuario no encontrado")
     })
-    public ResponseEntity<User> updateProfile(@PathVariable Long id,
+    public ResponseEntity<User> updateProfile(@PathVariable @NonNull Long id,
                                               @Valid @RequestBody ProfileUpdateRequest request) {
         if (service.findById(id).isEmpty()) {
             return ResponseEntity.notFound().build();
@@ -104,7 +94,7 @@ public class UserController {
             @ApiResponse(responseCode = "204", description = "Usuario eliminado con éxito"),
             @ApiResponse(responseCode = "404", description = "Usuario no encontrado")
     })
-    public ResponseEntity<Void> delete(@PathVariable Long id) {
+    public ResponseEntity<Void> delete(@PathVariable @NonNull Long id) {
         if (service.findById(id).isEmpty()) {
             return ResponseEntity.notFound().build();
         }
