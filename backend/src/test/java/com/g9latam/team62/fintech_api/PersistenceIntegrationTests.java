@@ -47,8 +47,10 @@ class PersistenceIntegrationTests {
 
         assertThat(saved.getId()).isNotNull();
         assertThat(saved.getPassword()).isNotEqualTo("secret");
-        assertThat(userService.authenticate("ADA@example.com", "secret")).isPresent();
-        assertThat(userService.authenticate("ada@example.com", "wrong")).isEmpty();
+        assertThat(userService.authenticate("ADA@example.com", "secret")).isNotNull();
+        assertThatThrownBy(() -> userService.authenticate("ada@example.com", "wrong"))
+                .isInstanceOf(IllegalArgumentException.class)
+                .hasMessage("Contraseña incorrecta");
     }
 
     @Test
@@ -80,19 +82,13 @@ class PersistenceIntegrationTests {
     }
 
     @Test
-    void authenticatingNonExistentUserRegistersThemAutomaticallyAsFallback() {
-        String email = "auto.registered.user@example.com";
+    void authenticatingNonExistentUserThrowsSpecificErrorFallback() {
+        String email = "non.existent.user@example.com";
         String password = "securePassword123";
 
-        Optional<User> authenticated = userService.authenticate(email, password);
-
-        assertThat(authenticated).isPresent();
-        User user = authenticated.get();
-        assertThat(user.getId()).isNotNull();
-        assertThat(user.getEmail()).isEqualTo(email);
-        assertThat(user.getName()).isEqualTo("Auto Registered User");
-        assertThat(user.getMonthlyIncome()).isEqualByComparingTo(BigDecimal.ZERO);
-        assertThat(user.getSavingFrequency()).isEqualTo(SavingFrequency.MONTHLY);
+        assertThatThrownBy(() -> userService.authenticate(email, password))
+                .isInstanceOf(IllegalArgumentException.class)
+                .hasMessage("No existe correo en nuestro sistema");
     }
 
     @Test

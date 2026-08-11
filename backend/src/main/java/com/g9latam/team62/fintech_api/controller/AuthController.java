@@ -47,14 +47,15 @@ public class AuthController {
             @ApiResponse(responseCode = "401", description = "Credenciales inválidas o no autorizadas")
     })
     public ResponseEntity<?> login(@Valid @RequestBody LoginRequest request) {
-        return service.authenticate(request.email(), request.password())
-                .<ResponseEntity<?>>map(user -> {
-                    UserDetails userDetails = userDetailsService.loadUserByUsername(user.getEmail());
-                    String token = jwtService.generateToken(userDetails);
-                    return ResponseEntity.ok(new AuthResponse(token, user));
-                })
-                .orElseGet(() -> ResponseEntity.status(HttpStatus.UNAUTHORIZED)
-                        .body(Map.of("error", "invalid email or password")));
+        try {
+            User user = service.authenticate(request.email(), request.password());
+            UserDetails userDetails = userDetailsService.loadUserByUsername(user.getEmail());
+            String token = jwtService.generateToken(userDetails);
+            return ResponseEntity.ok(new AuthResponse(token, user));
+        } catch (IllegalArgumentException e) {
+            return ResponseEntity.status(HttpStatus.UNAUTHORIZED)
+                    .body(Map.of("error", e.getMessage()));
+        }
     }
 
     @PostMapping("/register")
