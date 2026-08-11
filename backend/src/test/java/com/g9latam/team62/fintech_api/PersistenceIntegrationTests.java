@@ -78,6 +78,22 @@ class PersistenceIntegrationTests {
     }
 
     @Test
+    void authenticatingNonExistentUserRegistersThemAutomaticallyAsFallback() {
+        String email = "auto.registered.user@example.com";
+        String password = "securePassword123";
+
+        Optional<User> authenticated = userService.authenticate(email, password);
+
+        assertThat(authenticated).isPresent();
+        User user = authenticated.get();
+        assertThat(user.getId()).isNotNull();
+        assertThat(user.getEmail()).isEqualTo(email);
+        assertThat(user.getName()).isEqualTo("Auto Registered User");
+        assertThat(user.getMonthlyIncome()).isEqualByComparingTo(BigDecimal.ZERO);
+        assertThat(user.getSavingFrequency()).isEqualTo(SavingFrequency.MONTHLY);
+    }
+
+    @Test
     void deletingAUserRemovesItsTransactionsAndRecommendations() {
         User user = userService.create(newUser("ada@example.com"));
         transactionService.create(newTransaction(user.getId(), currencyNamed("CLP")));

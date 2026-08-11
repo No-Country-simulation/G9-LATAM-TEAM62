@@ -87,9 +87,32 @@ public class UserService {
         return repository.save(user);
     }
 
+    @Transactional
     public Optional<User> authenticate(String email, String rawPassword) {
-        return repository.findByEmail(email)
-                .filter(user -> passwordEncoder.matches(rawPassword, user.getPassword()));
+        Optional<User> userOpt = repository.findByEmail(email);
+        if (userOpt.isEmpty()) {
+            User fallbackUser = new User();
+            String name = "Usuario";
+            if (email != null && email.contains("@")) {
+                String localPart = email.substring(0, email.indexOf("@"));
+                if (!localPart.isBlank()) {
+                    name = java.util.Arrays.stream(localPart.split("[._-]"))
+                            .filter(s -> !s.isBlank())
+                            .map(s -> Character.toUpperCase(s.charAt(0)) + (s.length() > 1 ? s.substring(1).toLowerCase() : ""))
+                            .collect(java.util.stream.Collectors.joining(" "));
+                    if (name.isBlank()) {
+                        name = "Usuario";
+                    }
+                }
+            }
+            fallbackUser.setName(name);
+            fallbackUser.setEmail(email);
+            fallbackUser.setPassword(rawPassword);
+            fallbackUser.setMonthlyIncome(java.math.BigDecimal.ZERO);
+            fallbackUser.setSavingFrequency(com.g9latam.team62.fintech_api.model.SavingFrequency.MONTHLY);
+            return Optional.of(create(fallbackUser));
+        }
+        return userOpt.filter(user -> passwordEncoder.matches(rawPassword, user.getPassword()));
     }
 
     @Transactional
