@@ -5,13 +5,13 @@ import com.g9latam.team62.fintech_api.model.User;
 import com.g9latam.team62.fintech_api.repository.RecommendationRepository;
 import com.g9latam.team62.fintech_api.repository.TransactionRepository;
 import com.g9latam.team62.fintech_api.repository.UserRepository;
-import org.springframework.security.crypto.bcrypt.BCryptPasswordEncoder;
 import org.springframework.security.crypto.password.PasswordEncoder;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
 import java.time.LocalDateTime;
 import java.util.Collection;
+import org.springframework.lang.NonNull;
 import java.util.Optional;
 
 @Service
@@ -21,13 +21,18 @@ public class UserService {
     private final UserRepository repository;
     private final TransactionRepository transactionRepository;
     private final RecommendationRepository recommendationRepository;
-    private final PasswordEncoder passwordEncoder = new BCryptPasswordEncoder();
+    private final com.g9latam.team62.fintech_api.repository.FinancialProfileHistoryRepository historyRepository;
+    private final PasswordEncoder passwordEncoder;
 
     public UserService(UserRepository repository, TransactionRepository transactionRepository,
-                       RecommendationRepository recommendationRepository) {
+                       RecommendationRepository recommendationRepository,
+                       com.g9latam.team62.fintech_api.repository.FinancialProfileHistoryRepository historyRepository,
+                       PasswordEncoder passwordEncoder) {
         this.repository = repository;
         this.transactionRepository = transactionRepository;
         this.recommendationRepository = recommendationRepository;
+        this.historyRepository = historyRepository;
+        this.passwordEncoder = passwordEncoder;
     }
 
     @Transactional
@@ -46,12 +51,12 @@ public class UserService {
         return repository.findAll();
     }
 
-    public Optional<User> findById(Long id) {
+    public Optional<User> findById(@NonNull Long id) {
         return repository.findById(id);
     }
 
     @Transactional
-    public User update(Long id, User user) {
+    public User update(@NonNull Long id, User user) {
         User existing = repository.findById(id)
                 .orElseThrow(() -> new IllegalArgumentException("user " + id + " does not exist"));
         requireEmailAvailable(user.getEmail(), id);
@@ -64,7 +69,7 @@ public class UserService {
     }
 
     @Transactional
-    public User updateProfile(Long id, ProfileUpdateRequest request) {
+    public User updateProfile(@NonNull Long id, ProfileUpdateRequest request) {
         User user = repository.findById(id)
                 .orElseThrow(() -> new IllegalArgumentException("user " + id + " does not exist"));
         user.setFinancialProfile(request.financialProfile());
@@ -73,6 +78,12 @@ public class UserService {
             user.setSavingFrequency(request.savingFrequency());
         }
         user.setProfileUpdatedAt(LocalDateTime.now());
+
+        // Registra la entrada en el historial de evolución del perfil financiero
+        historyRepository.save(new com.g9latam.team62.fintech_api.model.FinancialProfileHistory(
+                null, id, request.financialProfile(), request.profileAccuracy(), LocalDateTime.now()
+        ));
+
         return repository.save(user);
     }
 
@@ -81,9 +92,20 @@ public class UserService {
                 .filter(user -> passwordEncoder.matches(rawPassword, user.getPassword()));
     }
 
+    @Transactional
+    public void changePassword(String email, String oldPassword, String newPassword) {
+        User user = repository.findByEmail(email)
+                .orElseThrow(() -> new IllegalArgumentException("User not found: " + email));
+        if (!passwordEncoder.matches(oldPassword, user.getPassword())) {
+            throw new IllegalArgumentException("Incorrect password");
+        }
+        user.setPassword(passwordEncoder.encode(newPassword));
+        repository.save(user);
+    }
+
     // one transaction: children first, so the foreign keys never dangle
     @Transactional
-    public void delete(Long id) {
+    public void delete(@NonNull Long id) {
         transactionRepository.deleteByUserId(id);
         recommendationRepository.deleteByUserId(id);
         repository.deleteById(id);

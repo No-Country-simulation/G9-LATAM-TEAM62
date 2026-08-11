@@ -20,7 +20,6 @@ import lombok.NoArgsConstructor;
 @NoArgsConstructor
 @AllArgsConstructor
 public class Currency {
-
     @Id
     @GeneratedValue(strategy = GenerationType.IDENTITY)
     private Long id;

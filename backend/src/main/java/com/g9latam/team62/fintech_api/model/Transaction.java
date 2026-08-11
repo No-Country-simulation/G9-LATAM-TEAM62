@@ -74,6 +74,24 @@ public class Transaction {
     @Column(name = "user_id", nullable = false)
     private Long userId;
 
+    @Enumerated(EnumType.STRING)
+    private TransactionSource source = TransactionSource.BANK;
+
+    @Enumerated(EnumType.STRING)
+    private PaymentMethod paymentMethod;
+
+    @Enumerated(EnumType.STRING)
+    private LinkStatus linkStatus = LinkStatus.UNLINKED;
+
+    private Long linkedTransactionId;
+
+    @Enumerated(EnumType.STRING)
+    private CategoryMethod categoryMethod;
+
+    private Double categoryConfidence;
+
+    private String bankName;
+
     public TransactionType getType() {
         return category == null ? null : category.getType();
     }

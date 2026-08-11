@@ -14,66 +14,76 @@ El sistema recibe información relacionada con gastos, ingresos y hábitos finan
 
 ## Funcionalidades principales
 
-- Clasificación automática de transacciones en categorías financieras
-- Análisis del perfil financiero del usuario
-- Generación de recomendaciones simples y objetivas
-- Identificación de patrones de consumo
-- Exposición de resultados mediante API REST en formato JSON
+- **Clasificación automática jerárquica de 4 niveles** para transacciones financieras
+- **Aprendizaje colaborativo (Crowdsourcing / Retroalimentación)** mediante actualización en tiempo real de reglas por corrección de usuarios
+- **Administración dinámica de palabras clave en base de datos** para reglas de clasificación sin necesidad de redesplegar
+- **Análisis del perfil financiero** del usuario (`SAVER`, `BALANCED`, `SPENDER`, `AT_RISK`)
+- **Generación de recomendaciones** personalizadas
+- **Conversión y extracción de cartolas bancarias** desde PDF a Excel
+- **API REST documentada con Swagger/OpenAPI** y asegurada con JWT
 
 ---
 
-## Arquitectura general
+## 🏗️ Motor de Clasificación Jerárquico (4 Niveles)
 
-La solución está compuesta por tres capas:
+El sistema procesa cada descripción de transacción bancaria mediante una cadena jerárquica de mayor a menor precisión:
 
-**Ciencia de Datos** — Construcción del dataset, exploración, ingeniería de atributos, entrenamiento y serialización de modelos de clasificación.
+```mermaid
+graph TD
+    A[Nueva Transacción con Descripción] --> B[TextNormalizer: Mayúsculas, sin tildes, sin números]
+    B --> C{¿Existe coincidencia exacta en BD?<br/>Nivel 1: Crowdsourcing}
+    C -- Sí (Confianza 1.0) --> D[Asignar categoría aprendida]
+    C -- No --> E{¿Coincide con palabras clave en BD?<br/>Nivel 2: Tabla category_keywords}
+    E -- Sí (Confianza 0.9) --> F[Asignar categoría por palabra clave]
+    E -- No --> G{¿Modelo ML disponible y confianza >= 0.60?<br/>Nivel 3: Scikit-Learn}
+    G -- Sí (Confianza modelo) --> H[Asignar categoría predicha por ML]
+    G -- No / Indisponible --> I[Nivel 4: Fallback a OTROS_EGRESOS]
+    D --> J[Transacción Guardada]
+    F --> J
+    H --> J
+    I --> J
+    J --> K{¿El usuario corrige la categoría?}
+    K -- Sí (PUT /api/transactions/{id}/category) --> L[Aprende en tiempo real:<br/>Guarda/Actualiza en transaction_category_mappings]
+```
 
-**Back-End** — API REST desarrollada en Java con Spring Boot. Recibe la información financiera, ejecuta las clasificaciones y devuelve respuestas estructuradas en JSON.
+### Detalle de los 4 Niveles:
 
-**Infraestructura OCI** — Uso de servicios Oracle Cloud Infrastructure para almacenamiento de modelos y despliegue de la aplicación.
+1. **Nivel 1 — Mapeo Colaborativo (`transaction_category_mappings`):** Busca coincidencia exacta con patrones previamente corregidos y confirmados por los usuarios. Si existe, asigna la categoría con nivel de confianza `1.0`.
+2. **Nivel 2 — Reglas por Palabras Clave (`category_keywords`):** Compara el texto normalizado contra un diccionario de palabras clave almacenado en la base de datos (pre-cargado con marcas y servicios comunes en Latam/Chile como Jumbo, Metro, Enel, Uber, etc.). Asigna la categoría con nivel de confianza `0.9`.
+3. **Nivel 3 — Modelo ML (`MlInferenceService`):** Invoca el modelo de clasificación supervisada desarrollado por el equipo de Ciencia de Datos cuando la confianza sea $\ge 0.60$.
+4. **Nivel 4 — Fallback:** Si ningún nivel anterior coincide, asigna por defecto `OTHER_EXPENSE` (Otros Egresos).
 
 ---
 
-## Ejemplo de uso
+## 🔄 Ciclo de Retroalimentación y Aprendizaje
 
-**Endpoint**
+Cuando un usuario detecta que la categoría sugerida no es correcta, puede enviar una corrección a través del endpoint de la API:
 
-```
-POST /analisis-financiero
-```
-
-**Request**
+`PUT /api/transactions/{id}/category`
 
 ```json
 {
-  "ingreso_mensual": 4500,
-  "nivel_endeudamiento": 25,
-  "frecuencia_ahorro": "Media",
-  "transacciones": [
-    { "descripcion": "Supermercado", "valor": 420 },
-    { "descripcion": "Combustible", "valor": 300 },
-    { "descripcion": "Streaming", "valor": 40 }
-  ]
+  "category": "FOOD"
 }
 ```
 
-**Response**
+Al recibir la corrección:
+1. Se actualiza la categoría de la transacción correspondiente.
+2. Se ejecuta `learnFromFeedback()`, actualizando o insertando el patrón en `transaction_category_mappings` y aumentando su contador de frecuencia.
+3. Futuras subidas de cartolas o registro de transacciones con esa misma descripción serán clasificadas instantáneamente en el **Nivel 1**.
 
-```json
-{
-  "perfil_financiero": "En observación",
-  "probabilidad": 0.82,
-  "resumen_gastos": {
-    "alimentacion": 420,
-    "transporte": 300,
-    "entretenimiento": 40
-  },
-  "recomendaciones": [
-    "Monitorear los gastos recurrentes de entretenimiento",
-    "Aumentar la reserva financiera mensual"
-  ]
-}
-```
+---
+
+## 🛠️ Normalización de Texto (`TextNormalizer`)
+
+Antes de ser evaluada por cualquiera de los niveles, la descripción de la transacción pasa por un proceso de homogeneización:
+- Conversión a mayúsculas.
+- Eliminación de acentos y caracteres diacríticos (`á` $\rightarrow$ `A`, `ñ` $\rightarrow$ `N`).
+- Eliminación de números, RUTs, fechas y códigos de sucursales o transferencias.
+- Eliminación de caracteres especiales.
+- Colapso de múltiples espacios a un solo espacio.
+
+*Ejemplo:* `"COMPRA JUMBO PROVIDENCIA 1234"` $\rightarrow$ `"COMPRA JUMBO PROVIDENCIA"`
 
 ---
 
@@ -81,11 +91,11 @@ POST /analisis-financiero
 
 | Área | Tecnologías |
 |---|---|
-| Ciencia de Datos | Python, Pandas, Scikit-Learn, Jupyter |
-| Back-End | Java 17, Spring Boot 3, Maven |
-| Base de datos | Oracle Autonomous Database — Transaction Processing (ATP), acceso con wallet |
+| Back-End | Java 17, Spring Boot 3 (Spring Security, JWT, Apache PDFBox, Apache POI), Maven |
+| Base de Datos | H2 (Pruebas locales) / Oracle Autonomous Database (Producción ATP over wallet) |
+| Documentación API | Springdoc OpenAPI (Swagger UI en `/swagger-ui.html`) |
+| Ciencia de Datos | Python, Scikit-Learn, Pandas, Jupyter |
 | Infraestructura | OCI Object Storage, OCI Container Instances, Docker |
-| Documentación API | springdoc-openapi (Swagger UI) |
 
 ---
 
@@ -99,9 +109,24 @@ finance-ai/
 ├── frontend/           # Interfaz de usuario
 └── infra/              # Configuración Docker y OCI
 ```
-curl.exe -X POST "http://localhost:8080/api/converter/pdf-to-excel" `
-  -F "file=@..\Cartola CuentaRUT 20260523_000002.pdf;type=application/pdf" `
+
+```bash
+curl.exe -X POST "http://localhost:8080/api/converter/pdf-to-excel" \
+  -F "file=@..\Cartola CuentaRUT 20260523_000002.pdf;type=application/pdf" \
   -o salida.xlsx
+```
+
+---
+
+## Endpoints de Transacciones
+
+- `GET /api/transactions` — Listar transacciones (filtro opcional por `userId`)
+- `GET /api/transactions/{id}` — Consultar transacción por ID
+- `POST /api/transactions` — Crear transacción con auto-clasificación inteligente
+- `PUT /api/transactions/{id}` — Actualización completa de la transacción
+- `PUT /api/transactions/{id}/category` — Corrección de categoría y retroalimentación de aprendizaje
+- `DELETE /api/transactions/{id}` — Eliminar transacción
+
 ---
 
 ## Despliegue

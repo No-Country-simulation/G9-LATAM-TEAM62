@@ -1,0 +1,1088 @@
+<!DOCTYPE html>
+<html lang="es">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Fintech API Testing Dashboard & Workflow Suite</title>
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link
+        href="https://fonts.googleapis.com/css2?family=Fira+Code:wght@400;500;600&family=Outfit:wght@300;400;500;600;700&display=swap"
+        rel="stylesheet">
+    <link rel="stylesheet" href="css/api-tester.css">
+
+</head>
+
+<body>
+
+    <header>
+        <div class="brand">
+            <div class="brand-logo">F</div>
+            <div>
+                <span class="brand-title">Fintech API Tester</span>
+                <span class="brand-tag">G9-LATAM Team62</span>
+            </div>
+        </div>
+
+        <div class="global-config">
+            <div class="config-item">
+                <label for="baseUrl">Base URL:</label>
+                <input type="text" id="baseUrl" value="http://localhost:8080">
+            </div>
+
+            <div class="config-item">
+                <label for="activeUserId">User ID:</label>
+                <input type="number" id="activeUserId" style="width: 70px;" placeholder="Ej: 1">
+            </div>
+
+            <div class="auth-status-badge unauthenticated" id="authBadge">
+                <span class="dot"></span>
+                <span id="authBadgeText">Sin Auth (Public)</span>
+            </div>
+
+            <button class="btn btn-outline btn-sm" onclick="clearToken()" title="Limpiar Token JWT Guardado">
+                🗑️ Limpiar Token
+            </button>
+        </div>
+    </header>
+
+    <div class="container">
+        <div class="nav-tabs">
+            <button class="tab-btn active" onclick="switchTab('workflowTab', this)">
+                🔄 Flujo Guiado Paso a Paso (Workflow)
+            </button>
+            <button class="tab-btn" onclick="switchTab('endpointsTab', this)">
+                ⚡ Probador de Endpoints Individuales
+            </button>
+        </div>
+
+        <!-- ==================== TAB 1: WORKFLOW PASO A PASO ==================== -->
+        <div id="workflowTab" class="tab-content active">
+            <div class="main-layout">
+                <div class="flow-stepper">
+
+                    <!-- PASO 1: REGISTRO / LOGIN -->
+                    <div class="step-card active" id="step1Card">
+                        <div class="step-header">
+                            <div class="step-title">
+                                <span class="step-number">1</span>
+                                Autenticación (Registro o Login)
+                            </div>
+                            <span class="method-badge method-post">POST /api/auth</span>
+                        </div>
+                        <p style="font-size: 13px; color: var(--text-muted); margin-bottom: 12px;">
+                            Ingresa credenciales para iniciar sesión o registrar un nuevo usuario en la plataforma
+                            Fintech. El JWT generado se almacenará en <code>localStorage</code> y se usará
+                            automáticamente en todas las llamadas subsiguientes.
+                        </p>
+
+                        <div class="form-grid">
+                            <div class="form-group">
+                                <label for="step1Email">Email</label>
+                                <input type="email" id="step1Email" value="juan.perez@example.com">
+                            </div>
+                            <div class="form-group">
+                                <label for="step1Password">Contraseña</label>
+                                <input type="password" id="step1Password" value="Password123">
+                            </div>
+                            <div class="form-group">
+                                <label for="step1Name">Nombre (Solo Registro)</label>
+                                <input type="text" id="step1Name" value="Juan Pérez">
+                            </div>
+                            <div class="form-group">
+                                <label for="step1Income">Ingreso Mensual (Solo Reg.)</label>
+                                <input type="number" id="step1Income" value="1200000">
+                            </div>
+                        </div>
+
+                        <div class="btn-group">
+                            <button class="btn" onclick="executeWorkflowLogin()">
+                                🔑 Iniciar Sesión (Login)
+                            </button>
+                            <button class="btn btn-outline" onclick="executeWorkflowRegister()">
+                                👤 Registrar Nuevo Usuario
+                            </button>
+                        </div>
+                    </div>
+
+                    <!-- PASO 2: INGESTA / REGISTRO TRANSACCION -->
+                    <div class="step-card" id="step2Card">
+                        <div class="step-header">
+                            <div class="step-title">
+                                <span class="step-number">2</span>
+                                Ingesta de Cartola o Transacción Manual
+                            </div>
+                            <span class="method-badge method-post">POST /api/transactions</span>
+                        </div>
+                        <p style="font-size: 13px; color: var(--text-muted); margin-bottom: 12px;">
+                            Puedes subir una cartola bancaria (Excel, CSV o PDF) para clasificar transacciones
+                            automáticamente con la IA/NLP, o agregar transacciones manuales.
+                        </p>
+
+                        <div style="margin-bottom: 16px;">
+                            <label style="margin-bottom: 8px; display: block;">Modo de Carga:</label>
+                            <div class="btn-group">
+                                <button class="btn btn-outline btn-sm" id="btnModeStatement"
+                                    onclick="toggleIngestMode('statement')">📁 Subir Cartola (Excel/CSV/PDF)</button>
+                                <button class="btn btn-outline btn-sm" id="btnModeManual"
+                                    onclick="toggleIngestMode('manual')">✍️ Transacción Manual</button>
+                            </div>
+                        </div>
+
+                        <!-- Form Subir Cartola -->
+                        <div id="formStatementMode">
+                            <div class="form-grid">
+                                <div class="form-group full-width">
+                                    <label for="statementFile">Archivo de Cartola Bancaria</label>
+                                    <input type="file" id="statementFile" accept=".xlsx,.xls,.csv,.pdf">
+                                </div>
+                                <div class="form-group">
+                                    <label for="statementYear">Año por Defecto</label>
+                                    <input type="number" id="statementYear" value="2026">
+                                </div>
+                                <div class="form-group">
+                                    <label for="statementCountry">País Referencia</label>
+                                    <input type="text" id="statementCountry" value="CL">
+                                </div>
+                            </div>
+                            <button class="btn btn-accent" onclick="executeWorkflowUploadStatement()">
+                                🚀 Subir e Ingestar Cartola
+                            </button>
+                        </div>
+
+                        <!-- Form Transaccion Manual -->
+                        <div id="formManualMode" style="display: none;">
+                            <div class="form-grid">
+                                <div class="form-group">
+                                    <label for="manualDesc">Descripción</label>
+                                    <input type="text" id="manualDesc" value="COMPRA SUPERMERCADO LIDER">
+                                </div>
+                                <div class="form-group">
+                                    <label for="manualAmount">Monto ($)</label>
+                                    <input type="number" id="manualAmount" value="45990">
+                                </div>
+                                <div class="form-group">
+                                    <label for="manualCategory">Categoría Inicial</label>
+                                    <select id="manualCategory">
+                                        <option value="FOOD" selected>FOOD (Alimentación)</option>
+                                        <option value="TRANSPORT">TRANSPORT (Transporte)</option>
+                                        <option value="HOUSING">HOUSING (Vivienda)</option>
+                                        <option value="UTILITIES">UTILITIES (Servicios Basicos)</option>
+                                        <option value="ENTERTAINMENT">ENTERTAINMENT (Entretenimiento)</option>
+                                        <option value="SALARY">SALARY (Sueldo)</option>
+                                    </select>
+                                </div>
+                                <div class="form-group">
+                                    <label for="manualMethod">Medio de Pago</label>
+                                    <select id="manualMethod">
+                                        <option value="DEBIT" selected>Débito</option>
+                                        <option value="CREDIT">Crédito</option>
+                                        <option value="CASH">Efectivo</option>
+                                    </select>
+                                </div>
+                            </div>
+                            <button class="btn btn-accent" onclick="executeWorkflowCreateManualTx()">
+                                ➕ Guardar Transacción Manual
+                            </button>
+                        </div>
+                    </div>
+
+                    <!-- PASO 3: CONSULTAR Y CORREGIR CATEGORIA -->
+                    <div class="step-card" id="step3Card">
+                        <div class="step-header">
+                            <div class="step-title">
+                                <span class="step-number">3</span>
+                                Consultar Transacciones y Feedback (Aprendizaje)
+                            </div>
+                            <span class="method-badge method-get">GET / PUT</span>
+                        </div>
+                        <p style="font-size: 13px; color: var(--text-muted); margin-bottom: 12px;">
+                            Consulta las transacciones ingresadas. Si la IA o el clasificador cometió una imprecisión,
+                            corrige la categoría para alimentar el sistema de <strong>aprendizaje colaborativo</strong>.
+                        </p>
+
+                        <div class="btn-group" style="margin-bottom: 12px;">
+                            <button class="btn" onclick="executeWorkflowFetchTransactions()">
+                                🔄 Cargar Mis Transacciones
+                            </button>
+                        </div>
+
+                        <div id="txListContainer" style="overflow-x: auto;">
+                            <p style="font-size: 13px; color: var(--text-dim); text-align: center; padding: 12px;">
+                                Haz clic en "Cargar Mis Transacciones" para obtener la lista.
+                            </p>
+                        </div>
+                    </div>
+
+                    <!-- PASO 4: RECOMENDACIONES PRESUPUESTARIAS -->
+                    <div class="step-card" id="step4Card">
+                        <div class="step-header">
+                            <div class="step-title">
+                                <span class="step-number">4</span>
+                                Generar Recomendaciones de Presupuesto (INE Chile)
+                            </div>
+                            <span class="method-badge method-post">POST /api/recommendations</span>
+                        </div>
+                        <p style="font-size: 13px; color: var(--text-muted); margin-bottom: 12px;">
+                            Evalúa el patrón de gastos contra las referencias del Instituto Nacional de Estadísticas
+                            (INE Chile) y la regla 50/30/20.
+                        </p>
+
+                        <div class="form-grid">
+                            <div class="form-group">
+                                <label for="recStart">Fecha Inicio</label>
+                                <input type="date" id="recStart">
+                            </div>
+                            <div class="form-group">
+                                <label for="recEnd">Fecha Término</label>
+                                <input type="date" id="recEnd">
+                            </div>
+                        </div>
+
+                        <button class="btn btn-accent" onclick="executeWorkflowGenerateRecommendations()">
+                            💡 Generar Diagnóstico Presupuestario
+                        </button>
+
+                        <div id="recommendationsOutput" style="margin-top: 14px;"></div>
+                    </div>
+
+                </div>
+
+                <!-- LADO DERECHO: VISOR DE RESPUESTA EN VIVO -->
+                <div class="response-container">
+                    <div class="card">
+                        <div class="card-header">
+                            <div class="card-title">
+                                📡 Visor de Respuesta HTTP
+                            </div>
+                            <button class="btn btn-outline btn-sm" onclick="copyResponseJSON()">
+                                📋 Copiar JSON
+                            </button>
+                        </div>
+
+                        <div class="response-meta">
+                            <div class="status-badge status-none" id="responseStatus">Status: ---</div>
+                            <div class="latency-badge" id="responseLatency">Latencia: -- ms</div>
+                        </div>
+
+                        <pre class="json-viewer"
+                            id="jsonViewer">// La respuesta de las peticiones HTTP aparecerá formateada aquí...</pre>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- ==================== TAB 2: PROBADOR INDIVIDUAL DE ENDPOINTS ==================== -->
+        <div id="endpointsTab" class="tab-content">
+            <div class="main-layout">
+                <div>
+                    <div class="card" style="margin-bottom: 20px;">
+                        <div class="card-title" style="margin-bottom: 14px;">
+                            📑 Seleccionar Endpoint a Probar
+                        </div>
+                        <div class="endpoint-selector">
+
+                            <!-- AUTH -->
+                            <div class="endpoint-item active" onclick="selectEndpoint('authLogin')">
+                                <div>
+                                    <span class="method-badge method-post">POST</span>
+                                    <span class="endpoint-path">/api/auth/login</span>
+                                </div>
+                                <span class="endpoint-desc">Iniciar Sesión & Obtener Token</span>
+                            </div>
+
+                            <div class="endpoint-item" onclick="selectEndpoint('authRegister')">
+                                <div>
+                                    <span class="method-badge method-post">POST</span>
+                                    <span class="endpoint-path">/api/auth/register</span>
+                                </div>
+                                <span class="endpoint-desc">Registrar Usuario Nuevo</span>
+                            </div>
+
+                            <!-- USERS -->
+                            <div class="endpoint-item" onclick="selectEndpoint('usersGetAll')">
+                                <div>
+                                    <span class="method-badge method-get">GET</span>
+                                    <span class="endpoint-path">/api/users</span>
+                                </div>
+                                <span class="endpoint-desc">Listar todos los usuarios</span>
+                            </div>
+
+                            <div class="endpoint-item" onclick="selectEndpoint('usersGetById')">
+                                <div>
+                                    <span class="method-badge method-get">GET</span>
+                                    <span class="endpoint-path">/api/users/{id}</span>
+                                </div>
+                                <span class="endpoint-desc">Obtener usuario por ID</span>
+                            </div>
+
+                            <div class="endpoint-item" onclick="selectEndpoint('usersUpdate')">
+                                <div>
+                                    <span class="method-badge method-put">PUT</span>
+                                    <span class="endpoint-path">/api/users/{id}</span>
+                                </div>
+                                <span class="endpoint-desc">Actualizar datos de usuario</span>
+                            </div>
+
+                            <div class="endpoint-item" onclick="selectEndpoint('usersUpdateProfile')">
+                                <div>
+                                    <span class="method-badge method-put">PUT</span>
+                                    <span class="endpoint-path">/api/users/{id}/profile</span>
+                                </div>
+                                <span class="endpoint-desc">Actualizar perfil financiero</span>
+                            </div>
+
+                            <div class="endpoint-item" onclick="selectEndpoint('usersChangePassword')">
+                                <div>
+                                    <span class="method-badge method-post">POST</span>
+                                    <span class="endpoint-path">/api/users/change-password</span>
+                                </div>
+                                <span class="endpoint-desc">Cambiar contraseña de usuario</span>
+                            </div>
+
+                            <!-- TRANSACTIONS -->
+                            <div class="endpoint-item" onclick="selectEndpoint('txGetAll')">
+                                <div>
+                                    <span class="method-badge method-get">GET</span>
+                                    <span class="endpoint-path">/api/transactions</span>
+                                </div>
+                                <span class="endpoint-desc">Listar transacciones (opcional ?userId=)</span>
+                            </div>
+
+                            <div class="endpoint-item" onclick="selectEndpoint('txCreate')">
+                                <div>
+                                    <span class="method-badge method-post">POST</span>
+                                    <span class="endpoint-path">/api/transactions</span>
+                                </div>
+                                <span class="endpoint-desc">Crear transacción (auto-clasificada)</span>
+                            </div>
+
+                            <div class="endpoint-item" onclick="selectEndpoint('txCreateManual')">
+                                <div>
+                                    <span class="method-badge method-post">POST</span>
+                                    <span class="endpoint-path">/api/transactions/manual</span>
+                                </div>
+                                <span class="endpoint-desc">Crear transacción manual</span>
+                            </div>
+
+                            <div class="endpoint-item" onclick="selectEndpoint('txUploadStatement')">
+                                <div>
+                                    <span class="method-badge method-post">POST</span>
+                                    <span class="endpoint-path">/api/transactions/upload-statement</span>
+                                </div>
+                                <span class="endpoint-desc">Subir cartola bancaria (Excel/PDF)</span>
+                            </div>
+
+                            <div class="endpoint-item" onclick="selectEndpoint('txUpdateCategory')">
+                                <div>
+                                    <span class="method-badge method-put">PUT</span>
+                                    <span class="endpoint-path">/api/transactions/{id}/category</span>
+                                </div>
+                                <span class="endpoint-desc">Corregir categoría de transacción</span>
+                            </div>
+
+                            <!-- RECOMMENDATIONS -->
+                            <div class="endpoint-item" onclick="selectEndpoint('recGenerate')">
+                                <div>
+                                    <span class="method-badge method-post">POST</span>
+                                    <span class="endpoint-path">/api/recommendations/generate</span>
+                                </div>
+                                <span class="endpoint-desc">Generar recomendaciones presupuestarias</span>
+                            </div>
+
+                        </div>
+                    </div>
+
+                    <!-- ENDPOINT TESTER PANEL -->
+                    <div class="card" id="endpointFormCard">
+                        <div class="card-header">
+                            <div class="card-title" id="epTitle">
+                                <span class="method-badge method-post" id="epMethodBadge">POST</span>
+                                <span id="epPathText">/api/auth/login</span>
+                            </div>
+                            <button class="btn btn-outline btn-sm" onclick="loadEndpointPreset()">
+                                ✨ Cargar Ejemplo Validado
+                            </button>
+                        </div>
+
+                        <div id="epParamsContainer" style="margin-bottom: 16px;"></div>
+
+                        <div class="form-group" id="epBodyGroup" style="margin-bottom: 16px;">
+                            <label for="epRequestBody">Request Body (JSON):</label>
+                            <textarea id="epRequestBody" rows="8"></textarea>
+                        </div>
+
+                        <div class="form-group" id="epFileGroup" style="display: none; margin-bottom: 16px;">
+                            <label for="epFileInput">Archivo Adjunto (Multipart/form-data):</label>
+                            <input type="file" id="epFileInput">
+                        </div>
+
+                        <button class="btn btn-accent" onclick="executeSelectedEndpoint()">
+                            ⚡ Enviar Petición
+                        </button>
+                    </div>
+                </div>
+
+                <!-- LADO DERECHO: VISOR DE RESPUESTA TAB 2 -->
+                <div class="response-container">
+                    <div class="card">
+                        <div class="card-header">
+                            <div class="card-title">
+                                📡 Visor de Respuesta HTTP
+                            </div>
+                            <button class="btn btn-outline btn-sm" onclick="copyResponseJSON()">
+                                📋 Copiar JSON
+                            </button>
+                        </div>
+
+                        <div class="response-meta">
+                            <div class="status-badge status-none" id="responseStatusEp">Status: ---</div>
+                            <div class="latency-badge" id="responseLatencyEp">Latencia: -- ms</div>
+                        </div>
+
+                        <pre class="json-viewer" id="jsonViewerEp">// La respuesta aparecerá formateada aquí...</pre>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+    </div>
+
+    <script>
+        // ==================== GLOBAL STATE & STORAGE ====================
+        let currentAuthToken = localStorage.getItem('fintech_jwt_token') || '';
+        let currentUserId = localStorage.getItem('fintech_user_id') || '';
+        let activeEndpointKey = 'authLogin';
+        let currentTransactionsList = [];
+
+        // Pre-fill date controls with defaults
+        document.addEventListener('DOMContentLoaded', () => {
+            const today = new Date();
+            const start30 = new Date(today);
+            start30.setDate(today.getDate() - 30);
+
+            document.getElementById('recEnd').value = today.toISOString().split('T')[0];
+            document.getElementById('recStart').value = start30.toISOString().split('T')[0];
+
+            if (currentUserId) {
+                document.getElementById('activeUserId').value = currentUserId;
+            }
+
+            updateAuthBadge();
+            selectEndpoint('authLogin');
+        });
+
+        function getBaseUrl() {
+            return document.getElementById('baseUrl').value.replace(/\/$/, '');
+        }
+
+        function updateAuthBadge() {
+            const badge = document.getElementById('authBadge');
+            const text = document.getElementById('authBadgeText');
+            if (currentAuthToken) {
+                badge.className = 'auth-status-badge authenticated';
+                text.textContent = 'JWT Activo (' + (currentUserId ? 'User ID: ' + currentUserId : 'Autenticado') + ')';
+            } else {
+                badge.className = 'auth-status-badge unauthenticated';
+                text.textContent = 'Sin Auth (Público)';
+            }
+        }
+
+        function setAuthData(token, userId) {
+            if (token) {
+                currentAuthToken = token;
+                localStorage.setItem('fintech_jwt_token', token);
+            }
+            if (userId) {
+                currentUserId = userId;
+                localStorage.setItem('fintech_user_id', userId);
+                document.getElementById('activeUserId').value = userId;
+            }
+            updateAuthBadge();
+        }
+
+        function clearToken() {
+            currentAuthToken = '';
+            currentUserId = '';
+            localStorage.removeItem('fintech_jwt_token');
+            localStorage.removeItem('fintech_user_id');
+            document.getElementById('activeUserId').value = '';
+            updateAuthBadge();
+            alert('Token e ID de usuario limpiados.');
+        }
+
+        function switchTab(tabId, btn) {
+            document.querySelectorAll('.tab-content').forEach(el => el.classList.remove('active'));
+            document.querySelectorAll('.tab-btn').forEach(el => el.classList.remove('active'));
+            document.getElementById(tabId).classList.add('active');
+            btn.classList.add('active');
+        }
+
+        function toggleIngestMode(mode) {
+            const stmtForm = document.getElementById('formStatementMode');
+            const manualForm = document.getElementById('formManualMode');
+            const btnStmt = document.getElementById('btnModeStatement');
+            const btnManual = document.getElementById('btnModeManual');
+
+            if (mode === 'statement') {
+                stmtForm.style.display = 'block';
+                manualForm.style.display = 'none';
+                btnStmt.classList.remove('btn-outline');
+                btnManual.classList.add('btn-outline');
+            } else {
+                stmtForm.style.display = 'none';
+                manualForm.style.display = 'block';
+                btnManual.classList.remove('btn-outline');
+                btnStmt.classList.add('btn-outline');
+            }
+        }
+
+        // ==================== HTTP FETCH UTILITIES ====================
+        async function makeApiCall(url, method = 'GET', body = null, isMultipart = false, customTargetViewer = null) {
+            const startTime = performance.now();
+            const statusBadge = customTargetViewer === 'ep' ? document.getElementById('responseStatusEp') : document.getElementById('responseStatus');
+            const latencyBadge = customTargetViewer === 'ep' ? document.getElementById('responseLatencyEp') : document.getElementById('responseLatency');
+            const viewer = customTargetViewer === 'ep' ? document.getElementById('jsonViewerEp') : document.getElementById('jsonViewer');
+
+            viewer.innerHTML = '<span class="loader"></span> Procesando petición...';
+
+            const headers = {};
+            if (currentAuthToken) {
+                headers['Authorization'] = 'Bearer ' + currentAuthToken;
+            }
+            if (body && !isMultipart) {
+                headers['Content-Type'] = 'application/json';
+            }
+
+            const fetchOptions = {
+                method: method,
+                headers: headers
+            };
+
+            if (body) {
+                fetchOptions.body = isMultipart ? body : (typeof body === 'string' ? body : JSON.stringify(body));
+            }
+
+            try {
+                const response = await fetch(url, fetchOptions);
+                const endTime = performance.now();
+                const latency = Math.round(endTime - startTime);
+
+                const statusText = `${response.status} ${response.statusText}`;
+                statusBadge.textContent = statusText;
+                latencyBadge.textContent = `Latencia: ${latency} ms`;
+
+                if (response.status >= 200 && response.status < 300) {
+                    statusBadge.className = 'status-badge status-2xx';
+                } else if (response.status >= 400 && response.status < 500) {
+                    statusBadge.className = 'status-badge status-4xx';
+                } else {
+                    statusBadge.className = 'status-badge status-5xx';
+                }
+
+                let responseData;
+                const contentType = response.headers.get('content-type');
+                if (contentType && contentType.includes('application/json')) {
+                    responseData = await response.json();
+                    viewer.innerHTML = syntaxHighlightJson(responseData);
+                } else {
+                    const rawText = await response.text();
+                    try {
+                        responseData = JSON.parse(rawText);
+                        viewer.innerHTML = syntaxHighlightJson(responseData);
+                    } catch (e) {
+                        viewer.textContent = rawText || '(Sin respuesta de texto)';
+                        responseData = rawText;
+                    }
+                }
+
+                return { ok: response.ok, status: response.status, data: responseData };
+
+            } catch (error) {
+                const endTime = performance.now();
+                statusBadge.className = 'status-badge status-5xx';
+                statusBadge.textContent = 'Error Red / CORS';
+                latencyBadge.textContent = `Latencia: ${Math.round(endTime - startTime)} ms`;
+                viewer.textContent = `[Error de Conexión]: ${error.message}\n\nAsegúrate de que el backend Spring Boot está corriendo en ${getBaseUrl()}`;
+                return { ok: false, error: error };
+            }
+        }
+
+        function syntaxHighlightJson(json) {
+            if (typeof json !== 'string') {
+                json = JSON.stringify(json, undefined, 2);
+            }
+            json = json.replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;');
+            return json.replace(/("(\\u[a-zA-Z0-9]{4}|\\[^u]|[^\\"])*"(\s*:)?|\b(true|false|null)\b|-?\d+(?:\.\d*)?(?:[eE][+\-]?\d+)?)/g, function (match) {
+                var cls = 'number';
+                if (/^"/.test(match)) {
+                    if (/:$/.test(match)) {
+                        cls = 'key';
+                    } else {
+                        cls = 'string';
+                    }
+                } else if (/true|false/.test(match)) {
+                    cls = 'boolean';
+                } else if (/null/.test(match)) {
+                    cls = 'null';
+                }
+                return '<span class="' + cls + '">' + match + '</span>';
+            });
+        }
+
+        function copyResponseJSON() {
+            const activeTab = document.querySelector('.tab-content.active').id;
+            const targetId = activeTab === 'endpointsTab' ? 'jsonViewerEp' : 'jsonViewer';
+            const viewer = document.getElementById(targetId);
+            navigator.clipboard.writeText(viewer.textContent).then(() => {
+                alert('JSON copiado al portapapeles.');
+            });
+        }
+
+        // ==================== WORKFLOW EXECUTION FUNCTIONS ====================
+        async function executeWorkflowLogin() {
+            const email = document.getElementById('step1Email').value;
+            const password = document.getElementById('step1Password').value;
+
+            const res = await makeApiCall(`${getBaseUrl()}/api/auth/login`, 'POST', { email, password });
+            if (res.ok && res.data.token) {
+                setAuthData(res.data.token, res.data.user ? res.data.user.id : '');
+                document.getElementById('step1Card').classList.remove('active');
+                document.getElementById('step2Card').classList.add('active');
+            }
+        }
+
+        async function executeWorkflowRegister() {
+            const email = document.getElementById('step1Email').value;
+            const password = document.getElementById('step1Password').value;
+            const name = document.getElementById('step1Name').value;
+            const monthlyIncome = parseFloat(document.getElementById('step1Income').value) || 0;
+
+            const res = await makeApiCall(`${getBaseUrl()}/api/auth/register`, 'POST', {
+                name,
+                email,
+                password,
+                monthlyIncome,
+                savingFrequency: 'MONTHLY'
+            });
+
+            if (res.ok && res.data.id) {
+                alert(`Usuario registrado con éxito (ID: ${res.data.id}). Procediendo al Login automatico...`);
+                await executeWorkflowLogin();
+            }
+        }
+
+        async function executeWorkflowUploadStatement() {
+            const userId = document.getElementById('activeUserId').value || currentUserId;
+            if (!userId) {
+                alert('Por favor especifica un User ID o inicia sesión primero.');
+                return;
+            }
+            const fileInput = document.getElementById('statementFile');
+            if (!fileInput.files || fileInput.files.length === 0) {
+                alert('Selecciona un archivo de cartola (Excel, CSV o PDF).');
+                return;
+            }
+
+            const formData = new FormData();
+            formData.append('file', fileInput.files[0]);
+            formData.append('userId', userId);
+            formData.append('defaultYear', document.getElementById('statementYear').value || '2026');
+            formData.append('country', document.getElementById('statementCountry').value || 'CL');
+
+            const res = await makeApiCall(`${getBaseUrl()}/api/transactions/upload-statement`, 'POST', formData, true);
+            if (res.ok) {
+                document.getElementById('step2Card').classList.remove('active');
+                document.getElementById('step3Card').classList.add('active');
+                await executeWorkflowFetchTransactions();
+            }
+        }
+
+        async function executeWorkflowCreateManualTx() {
+            const userId = document.getElementById('activeUserId').value || currentUserId;
+            if (!userId) {
+                alert('Especifica un User ID o inicia sesión primero.');
+                return;
+            }
+
+            const payload = {
+                userId: parseInt(userId),
+                amount: parseFloat(document.getElementById('manualAmount').value),
+                category: document.getElementById('manualCategory').value,
+                description: document.getElementById('manualDesc').value,
+                currency: { id: 1, name_currency: 'CLP' },
+                paymentMethod: document.getElementById('manualMethod').value,
+                bankName: 'Manual'
+            };
+
+            const res = await makeApiCall(`${getBaseUrl()}/api/transactions/manual`, 'POST', payload);
+            if (res.ok) {
+                document.getElementById('step2Card').classList.remove('active');
+                document.getElementById('step3Card').classList.add('active');
+                await executeWorkflowFetchTransactions();
+            }
+        }
+
+        async function executeWorkflowFetchTransactions() {
+            const userId = document.getElementById('activeUserId').value || currentUserId;
+            const url = userId ? `${getBaseUrl()}/api/transactions?userId=${userId}` : `${getBaseUrl()}/api/transactions`;
+
+            const res = await makeApiCall(url, 'GET');
+            if (res.ok && Array.isArray(res.data)) {
+                currentTransactionsList = res.data;
+                renderTransactionsTable(res.data);
+            }
+        }
+
+        function renderTransactionsTable(transactions) {
+            const container = document.getElementById('txListContainer');
+            if (transactions.length === 0) {
+                container.innerHTML = '<p style="font-size: 13px; color: var(--text-dim); text-align: center; padding: 12px;">No se encontraron transacciones para este usuario.</p>';
+                return;
+            }
+
+            let html = `
+                <table class="data-table">
+                    <thead>
+                        <tr>
+                            <th>ID</th>
+                            <th>Fecha</th>
+                            <th>Descripción</th>
+                            <th>Monto</th>
+                            <th>Categoría Actual</th>
+                            <th>Método Clasificación</th>
+                            <th>Acción (Feedback)</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+            `;
+
+            transactions.forEach(tx => {
+                html += `
+                    <tr>
+                        <td>${tx.id}</td>
+                        <td>${tx.date || 'N/A'}</td>
+                        <td><strong>${tx.description || 'Sin descripción'}</strong></td>
+                        <td>$${(tx.amount || 0).toLocaleString()}</td>
+                        <td><span class="method-badge method-post">${tx.category || 'N/A'}</span></td>
+                        <td><small style="color: var(--text-muted);">${tx.categoryMethod || 'MANUAL'}</small></td>
+                        <td>
+                            <select id="corrCat_${tx.id}" style="padding: 4px 8px; font-size: 11px; width: 120px;">
+                                <option value="FOOD">FOOD</option>
+                                <option value="TRANSPORT">TRANSPORT</option>
+                                <option value="HOUSING">HOUSING</option>
+                                <option value="UTILITIES">UTILITIES</option>
+                                <option value="ENTERTAINMENT">ENTERTAINMENT</option>
+                                <option value="HEALTH">HEALTH</option>
+                                <option value="SHOPPING">SHOPPING</option>
+                            </select>
+                            <button class="btn btn-outline btn-sm" onclick="executeCategoryCorrection(${tx.id})" style="padding: 3px 8px; font-size: 11px;">Corregir</button>
+                        </td>
+                    </tr>
+                `;
+            });
+
+            html += `</tbody></table>`;
+            container.innerHTML = html;
+        }
+
+        async function executeCategoryCorrection(txId) {
+            const newCategory = document.getElementById(`corrCat_${txId}`).value;
+            const res = await makeApiCall(`${getBaseUrl()}/api/transactions/${txId}/category`, 'PUT', { category: newCategory });
+            if (res.ok) {
+                alert(`Categoría de transacción #${txId} actualizada a ${newCategory} (Feedback guardado).`);
+                await executeWorkflowFetchTransactions();
+            }
+        }
+
+        async function executeWorkflowGenerateRecommendations() {
+            const userId = document.getElementById('activeUserId').value || currentUserId;
+            if (!userId) {
+                alert('Especifique el User ID primero.');
+                return;
+            }
+
+            const start = document.getElementById('recStart').value;
+            const end = document.getElementById('recEnd').value;
+
+            let url = `${getBaseUrl()}/api/recommendations/generate?userId=${userId}`;
+            if (start) url += `&periodStart=${start}`;
+            if (end) url += `&periodEnd=${end}`;
+
+            const res = await makeApiCall(url, 'POST');
+            if (res.ok && Array.isArray(res.data)) {
+                renderRecommendations(res.data);
+            }
+        }
+
+        function renderRecommendations(list) {
+            const container = document.getElementById('recommendationsOutput');
+            if (list.length === 0) {
+                container.innerHTML = '<div class="recommendation-card OPTIMAL"><div class="rec-header">🎉 ¡Presupuesto Óptimo!</div><div class="rec-body">No se detectaron desviaciones significativas en tus gastos en comparación con las referencias INE Chile.</div></div>';
+                return;
+            }
+
+            let html = '';
+            list.forEach(rec => {
+                const statusClass = rec.status || 'WARNING';
+                html += `
+                    <div class="recommendation-card ${statusClass}">
+                        <div class="rec-header">
+                            <span>${rec.category || 'Presupuesto General'}</span>
+                            <span style="font-size: 12px; opacity: 0.8;">Gasto: $${(rec.currentSpend || 0).toLocaleString()} vs Límite INE: $${(rec.recommendedLimit || 0).toLocaleString()}</span>
+                        </div>
+                        <div class="rec-body">${rec.message || 'Sin mensaje especificado.'}</div>
+                    </div>
+                `;
+            });
+
+            container.innerHTML = html;
+        }
+
+        // ==================== ENDPOINT TESTER CONFIGURATION ====================
+        const endpointConfigs = {
+            authLogin: {
+                title: 'POST /api/auth/login',
+                method: 'POST',
+                path: '/api/auth/login',
+                hasBody: true,
+                hasFile: false,
+                preset: { email: 'juan.perez@example.com', password: 'Password123!' }
+            },
+            authRegister: {
+                title: 'POST /api/auth/register',
+                method: 'POST',
+                path: '/api/auth/register',
+                hasBody: true,
+                hasFile: false,
+                preset: {
+                    name: 'Juan Pérez',
+                    email: 'juan.perez@example.com',
+                    password: 'Password123!',
+                    monthlyIncome: 1200000.00,
+                    savingFrequency: 'MONTHLY'
+                }
+            },
+            usersGetAll: {
+                title: 'GET /api/users',
+                method: 'GET',
+                path: '/api/users',
+                hasBody: false,
+                hasFile: false
+            },
+            usersGetById: {
+                title: 'GET /api/users/{id}',
+                method: 'GET',
+                path: '/api/users/{id}',
+                params: [{ name: 'id', label: 'User ID', default: '1' }],
+                hasBody: false,
+                hasFile: false
+            },
+            usersUpdate: {
+                title: 'PUT /api/users/{id}',
+                method: 'PUT',
+                path: '/api/users/{id}',
+                params: [{ name: 'id', label: 'User ID', default: '1' }],
+                hasBody: true,
+                hasFile: false,
+                preset: {
+                    name: 'Juan Pérez Actualizado',
+                    email: 'juan.perez@example.com',
+                    monthlyIncome: 1500000.00,
+                    savingFrequency: 'BIWEEKLY'
+                }
+            },
+            usersUpdateProfile: {
+                title: 'PUT /api/users/{id}/profile',
+                method: 'PUT',
+                path: '/api/users/{id}/profile',
+                params: [{ name: 'id', label: 'User ID', default: '1' }],
+                hasBody: true,
+                hasFile: false,
+                preset: {
+                    financialProfile: 'BALANCED',
+                    profileAccuracy: 0.85,
+                    savingFrequency: 'MONTHLY'
+                }
+            },
+            usersChangePassword: {
+                title: 'POST /api/users/change-password',
+                method: 'POST',
+                path: '/api/users/change-password',
+                hasBody: true,
+                hasFile: false,
+                preset: { oldPassword: 'Password123!', newPassword: 'NewPassword456!' }
+            },
+            txGetAll: {
+                title: 'GET /api/transactions',
+                method: 'GET',
+                path: '/api/transactions',
+                queryParams: [{ name: 'userId', label: 'Filtro User ID (Opcional)', default: '1' }],
+                hasBody: false,
+                hasFile: false
+            },
+            txCreate: {
+                title: 'POST /api/transactions',
+                method: 'POST',
+                path: '/api/transactions',
+                hasBody: true,
+                hasFile: false,
+                preset: {
+                    description: 'COMPRA SUPERMERCADO LIDER',
+                    amount: 45990.00,
+                    category: 'FOOD',
+                    date: '2026-08-01',
+                    currency: { id: 1, name_currency: 'CLP' },
+                    userId: 1,
+                    paymentMethod: 'DEBIT',
+                    bankName: 'Banco de Chile'
+                }
+            },
+            txCreateManual: {
+                title: 'POST /api/transactions/manual',
+                method: 'POST',
+                path: '/api/transactions/manual',
+                hasBody: true,
+                hasFile: false,
+                preset: {
+                    userId: 1,
+                    amount: 25000.00,
+                    category: 'TRANSPORT',
+                    description: 'CARGA BIP METRO',
+                    currency: { id: 1, name_currency: 'CLP' },
+                    paymentMethod: 'CASH',
+                    bankName: 'Efectivo'
+                }
+            },
+            txUploadStatement: {
+                title: 'POST /api/transactions/upload-statement',
+                method: 'POST',
+                path: '/api/transactions/upload-statement',
+                queryParams: [
+                    { name: 'userId', label: 'User ID', default: '1' },
+                    { name: 'defaultYear', label: 'Año (Opcional)', default: '2026' },
+                    { name: 'country', label: 'País (Opcional)', default: 'CL' }
+                ],
+                hasBody: false,
+                hasFile: true
+            },
+            txUpdateCategory: {
+                title: 'PUT /api/transactions/{id}/category',
+                method: 'PUT',
+                path: '/api/transactions/{id}/category',
+                params: [{ name: 'id', label: 'Transaction ID', default: '1' }],
+                hasBody: true,
+                hasFile: false,
+                preset: { category: 'ENTERTAINMENT' }
+            },
+            recGenerate: {
+                title: 'POST /api/recommendations/generate',
+                method: 'POST',
+                path: '/api/recommendations/generate',
+                queryParams: [
+                    { name: 'userId', label: 'User ID', default: '1' },
+                    { name: 'periodStart', label: 'Fecha Inicio (YYYY-MM-DD)', default: '2026-07-01' },
+                    { name: 'periodEnd', label: 'Fecha Fin (YYYY-MM-DD)', default: '2026-08-09' }
+                ],
+                hasBody: false,
+                hasFile: false
+            }
+        };
+
+        function selectEndpoint(key) {
+            activeEndpointKey = key;
+            const config = endpointConfigs[key];
+
+            document.querySelectorAll('.endpoint-item').forEach(el => el.classList.remove('active'));
+            event?.currentTarget?.classList?.add('active');
+
+            document.getElementById('epPathText').textContent = config.path;
+            const badge = document.getElementById('epMethodBadge');
+            badge.textContent = config.method;
+            badge.className = `method-badge method-${config.method.toLowerCase()}`;
+
+            // Render path / query params
+            const paramsContainer = document.getElementById('epParamsContainer');
+            paramsContainer.innerHTML = '';
+
+            const allParams = [...(config.params || []), ...(config.queryParams || [])];
+            if (allParams.length > 0) {
+                let html = '<div class="form-grid">';
+                allParams.forEach(p => {
+                    html += `
+                        <div class="form-group">
+                            <label for="epParam_${p.name}">${p.label}</label>
+                            <input type="text" id="epParam_${p.name}" value="${p.default || ''}">
+                        </div>
+                    `;
+                });
+                html += '</div>';
+                paramsContainer.innerHTML = html;
+            }
+
+            // Body group
+            const bodyGroup = document.getElementById('epBodyGroup');
+            if (config.hasBody) {
+                bodyGroup.style.display = 'block';
+                document.getElementById('epRequestBody').value = JSON.stringify(config.preset || {}, null, 2);
+            } else {
+                bodyGroup.style.display = 'none';
+            }
+
+            // File group
+            const fileGroup = document.getElementById('epFileGroup');
+            fileGroup.style.display = config.hasFile ? 'block' : 'none';
+        }
+
+        function loadEndpointPreset() {
+            const config = endpointConfigs[activeEndpointKey];
+            if (config && config.preset) {
+                document.getElementById('epRequestBody').value = JSON.stringify(config.preset, null, 2);
+            }
+        }
+
+        async function executeSelectedEndpoint() {
+            const config = endpointConfigs[activeEndpointKey];
+            let url = getBaseUrl() + config.path;
+
+            // Substitute path parameters
+            if (config.params) {
+                config.params.forEach(p => {
+                    const val = document.getElementById(`epParam_${p.name}`).value;
+                    url = url.replace(`{${p.name}}`, encodeURIComponent(val));
+                });
+            }
+
+            // Append query parameters
+            if (config.queryParams) {
+                const queryParts = [];
+                config.queryParams.forEach(p => {
+                    const val = document.getElementById(`epParam_${p.name}`)?.value;
+                    if (val) queryParts.push(`${p.name}=${encodeURIComponent(val)}`);
+                });
+                if (queryParts.length > 0) {
+                    url += '?' + queryParts.join('&');
+                }
+            }
+
+            if (config.hasFile) {
+                const fileInput = document.getElementById('epFileInput');
+                if (!fileInput.files || fileInput.files.length === 0) {
+                    alert('Por favor selecciona un archivo primero.');
+                    return;
+                }
+                const formData = new FormData();
+                formData.append('file', fileInput.files[0]);
+                await makeApiCall(url, config.method, formData, true, 'ep');
+            } else if (config.hasBody) {
+                const bodyText = document.getElementById('epRequestBody').value;
+                await makeApiCall(url, config.method, bodyText, false, 'ep');
+            } else {
+                await makeApiCall(url, config.method, null, false, 'ep');
+            }
+        }
+    </script>
+</body>
+
+</html>

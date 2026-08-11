@@ -1,0 +1,15 @@
+{
+  "properties": [
+    {
+      "name": "ml.inference.enabled",
+      "type": "java.lang.Boolean",
+      "description": "Enable ML inference service for category classification.",
+      "defaultValue": false
+    },
+    {
+      "name": "ml.inference.url",
+      "type": "java.lang.String",
+      "description": "URL of the ML inference service API."
+    }
+  ]
+}

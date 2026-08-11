@@ -26,6 +26,9 @@ class PdfToExcelServiceTests {
     void convertActualCartolaMatchesReferenceWorkbook() throws Exception {
         Path pdfPath = locateSampleFile("Cartola CuentaRUT 20260523_000002.pdf");
         assumeTrue(pdfPath != null, "No se encontró el PDF de ejemplo en la raíz del proyecto");
+        if (pdfPath == null) {
+            return;
+        }
 
         MockMultipartFile pdfFile = new MockMultipartFile(
                 "file",
