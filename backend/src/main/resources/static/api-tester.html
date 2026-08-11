@@ -826,13 +826,23 @@
             let html = '';
             list.forEach(rec => {
                 const statusClass = rec.status || 'WARNING';
+                const displayText = rec.text || rec.message || 'Sin mensaje especificado.';
+                const headerText = rec.category || 'Alerta de Gasto';
+
+                let spendHtml = '';
+                if (rec.currentSpend !== undefined && rec.recommendedLimit !== undefined) {
+                    spendHtml = `<span style="font-size: 12px; opacity: 0.8;">Gasto: $${rec.currentSpend.toLocaleString()} vs Límite: $${rec.recommendedLimit.toLocaleString()}</span>`;
+                } else if (rec.generatedAt) {
+                    spendHtml = `<span style="font-size: 12px; opacity: 0.8;">Generada: ${new Date(rec.generatedAt).toLocaleDateString()}</span>`;
+                }
+
                 html += `
                     <div class="recommendation-card ${statusClass}">
                         <div class="rec-header">
-                            <span>${rec.category || 'Presupuesto General'}</span>
-                            <span style="font-size: 12px; opacity: 0.8;">Gasto: $${(rec.currentSpend || 0).toLocaleString()} vs Límite INE: $${(rec.recommendedLimit || 0).toLocaleString()}</span>
+                            <span>${headerText}</span>
+                            ${spendHtml}
                         </div>
-                        <div class="rec-body">${rec.message || 'Sin mensaje especificado.'}</div>
+                        <div class="rec-body">${displayText}</div>
                     </div>
                 `;
             });

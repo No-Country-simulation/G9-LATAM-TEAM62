@@ -124,13 +124,7 @@ public class TransactionService {
         return repository.save(transaction);
     }
 
-    /**
-     * Endpoint alternativo de corrección mediante DTO.
-     */
-    @Transactional
-    public Transaction correctCategory(@NonNull Long id, CategoryCorrectionRequest request) {
-        return updateCategory(id, request.category());
-    }
+
 
     public Collection<Transaction> findAll() {
         return repository.findAll();
