@@ -1,6 +1,5 @@
 package com.g9latam.team62.fintech_api.service;
 
-import com.g9latam.team62.fintech_api.dto.CategoryCorrectionRequest;
 import com.g9latam.team62.fintech_api.dto.ClassificationResult;
 import com.g9latam.team62.fintech_api.dto.ManualTransactionRequest;
 import com.g9latam.team62.fintech_api.model.Category;
@@ -164,7 +163,7 @@ public class TransactionService {
             throw new IllegalArgumentException("currency is required");
         }
         if (currency.getId() != null) {
-            return currencyRepository.findById(currency.getId())
+            return currencyRepository.findById(java.util.Objects.requireNonNull(currency.getId()))
                     .orElseThrow(() -> new IllegalArgumentException(
                             "currency " + currency.getId() + " does not exist"));
         }

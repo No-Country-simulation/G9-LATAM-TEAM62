@@ -85,10 +85,9 @@ class PersistenceIntegrationTests {
         recommendation.setText("Aumentar la reserva mensual");
         recommendation.setUserId(user.getId());
         recommendationService.create(recommendation);
+        userService.delete(java.util.Objects.requireNonNull(user.getId()));
 
-        userService.delete(user.getId());
-
-        assertThat(userService.findById(user.getId())).isEmpty();
+        assertThat(userService.findById(java.util.Objects.requireNonNull(user.getId()))).isEmpty();
         assertThat(transactionRepository.findByUserId(user.getId())).isEmpty();
         assertThat(recommendationRepository.findByUserId(user.getId())).isEmpty();
     }
