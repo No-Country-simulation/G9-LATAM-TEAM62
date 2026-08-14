@@ -150,7 +150,7 @@ class ReconciliationAndDuplicateTests {
         assertThat(bankSaved.getLinkedTransactionId()).isEqualTo(manualSaved.getId());
 
         // Refresh manual transaction and check linked state
-        Transaction manualRefreshed = transactionRepository.findById(manualSaved.getId()).orElseThrow();
+        Transaction manualRefreshed = transactionRepository.findById(java.util.Objects.requireNonNull(manualSaved.getId())).orElseThrow();
         assertThat(manualRefreshed.getLinkStatus()).isEqualTo(LinkStatus.LINKED);
         assertThat(manualRefreshed.getLinkedTransactionId()).isEqualTo(bankSaved.getId());
         // Manual transaction should inherit the bank's operation number
@@ -192,7 +192,7 @@ class ReconciliationAndDuplicateTests {
         Transaction bankSaved = transactionService.create(bankTransaction);
 
         assertThat(bankSaved.getLinkStatus()).isEqualTo(LinkStatus.UNLINKED);
-        Transaction manualRefreshed = transactionRepository.findById(manualSaved.getId()).orElseThrow();
+        Transaction manualRefreshed = transactionRepository.findById(java.util.Objects.requireNonNull(manualSaved.getId())).orElseThrow();
         assertThat(manualRefreshed.getLinkStatus()).isEqualTo(LinkStatus.UNLINKED);
     }
 
@@ -252,7 +252,7 @@ class ReconciliationAndDuplicateTests {
 
         // Assert they linked
         assertThat(bankSaved.getLinkStatus()).isEqualTo(LinkStatus.LINKED);
-        Transaction manualRefreshed = transactionRepository.findById(manualSaved.getId()).orElseThrow();
+        Transaction manualRefreshed = transactionRepository.findById(java.util.Objects.requireNonNull(manualSaved.getId())).orElseThrow();
         assertThat(manualRefreshed.getLinkStatus()).isEqualTo(LinkStatus.LINKED);
 
         // Calculate sum manually through the same logic as BudgetRecommendationService
@@ -273,7 +273,7 @@ class ReconciliationAndDuplicateTests {
         assertThat(totalFoodExpense).isEqualByComparingTo(new BigDecimal("35000.00"));
         
         // Verify budget recommendation generation executes without error
-        var recs = budgetRecommendationService.generateRecommendations(user.getId(), LocalDate.now().minusDays(10), LocalDate.now().plusDays(10));
+        var recs = budgetRecommendationService.generateRecommendations(java.util.Objects.requireNonNull(user.getId()), LocalDate.now().minusDays(10), LocalDate.now().plusDays(10));
         assertThat(recs).isNotNull();
     }
 
@@ -311,7 +311,7 @@ class ReconciliationAndDuplicateTests {
 
         // Verify they are NOT linked because they are from different banks!
         assertThat(bankSaved.getLinkStatus()).isEqualTo(LinkStatus.UNLINKED);
-        Transaction manualRefreshed = transactionRepository.findById(manualSaved.getId()).orElseThrow();
+        Transaction manualRefreshed = transactionRepository.findById(java.util.Objects.requireNonNull(manualSaved.getId())).orElseThrow();
         assertThat(manualRefreshed.getLinkStatus()).isEqualTo(LinkStatus.UNLINKED);
     }
 
@@ -351,7 +351,7 @@ class ReconciliationAndDuplicateTests {
         assertThat(bankSaved.getLinkStatus()).isEqualTo(LinkStatus.LINKED);
         assertThat(bankSaved.getLinkedTransactionId()).isEqualTo(manualSaved.getId());
 
-        Transaction manualRefreshed = transactionRepository.findById(manualSaved.getId()).orElseThrow();
+        Transaction manualRefreshed = transactionRepository.findById(java.util.Objects.requireNonNull(manualSaved.getId())).orElseThrow();
         assertThat(manualRefreshed.getLinkStatus()).isEqualTo(LinkStatus.LINKED);
         assertThat(manualRefreshed.getLinkedTransactionId()).isEqualTo(bankSaved.getId());
     }
