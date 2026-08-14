@@ -14,6 +14,8 @@ import com.g9latam.team62.fintech_api.repository.UserRepository;
 import org.springframework.lang.NonNull;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
+import com.g9latam.team62.fintech_api.model.PaymentMethod;
+import java.util.UUID;
 
 import java.time.LocalDate;
 import java.util.Collection;
@@ -65,6 +67,75 @@ public class TransactionService {
             transaction.setCategoryConfidence(result.confidence());
         }
 
+        // 1. Duplication Prevention (for BANK statements)
+        if (transaction.getSource() == TransactionSource.BANK) {
+            List<Transaction> existingBankTxs;
+            if (transaction.getOperationNumber() != null && !transaction.getOperationNumber().isBlank()) {
+                existingBankTxs = repository.findByUserIdAndOperationNumberAndSource(transaction.getUserId(), transaction.getOperationNumber(), TransactionSource.BANK);
+            } else {
+                existingBankTxs = repository.findByUserIdAndAmountAndDateAndDescriptionAndSource(
+                        transaction.getUserId(),
+                        transaction.getAmount(),
+                        transaction.getDate(),
+                        transaction.getDescription(),
+                        TransactionSource.BANK
+                );
+            }
+            if (!existingBankTxs.isEmpty()) {
+                // Return existing to skip duplication
+                return existingBankTxs.get(0);
+            }
+
+            // 2. Link with Manual transactions (DEBIT/CREDIT, not CASH)
+            List<Transaction> candidates = repository.findCandidates(
+                    transaction.getUserId(),
+                    TransactionSource.MANUAL,
+                    LinkStatus.UNLINKED,
+                    transaction.getAmount(),
+                    transaction.getDate().minusDays(3),
+                    transaction.getDate().plusDays(3)
+            );
+
+            Transaction bestMatch = null;
+            for (Transaction candidate : candidates) {
+                if (candidate.getPaymentMethod() == PaymentMethod.CASH) {
+                    continue;
+                }
+                // Verify bankName matches if both specify it
+                if (transaction.getBankName() != null && candidate.getBankName() != null) {
+                    if (!transaction.getBankName().equalsIgnoreCase(candidate.getBankName())) {
+                        continue; // Different banks, skip
+                    }
+                }
+                if (candidate.getOperationNumber() != null && transaction.getOperationNumber() != null) {
+                    if (candidate.getOperationNumber().equalsIgnoreCase(transaction.getOperationNumber())) {
+                        bestMatch = candidate;
+                        break;
+                    }
+                } else if (isDescriptionSimilar(transaction.getDescription(), candidate.getDescription())) {
+                    bestMatch = candidate;
+                } else if (bestMatch == null) {
+                    // Fallback to first non-CASH candidate
+                    bestMatch = candidate;
+                }
+            }
+
+            if (bestMatch != null) {
+                transaction.setLinkStatus(LinkStatus.LINKED);
+                Transaction savedBank = repository.save(transaction);
+
+                bestMatch.setLinkStatus(LinkStatus.LINKED);
+                bestMatch.setLinkedTransactionId(savedBank.getId());
+                if (bestMatch.getOperationNumber() == null || bestMatch.getOperationNumber().isBlank()) {
+                    bestMatch.setOperationNumber(savedBank.getOperationNumber());
+                }
+                repository.save(bestMatch);
+
+                savedBank.setLinkedTransactionId(bestMatch.getId());
+                return repository.save(savedBank);
+            }
+        }
+
         return repository.save(transaction);
     }
 
@@ -98,7 +169,80 @@ public class TransactionService {
         transaction.setLinkStatus(LinkStatus.UNLINKED);
         transaction.setBankName(request.bankName());
 
+        // 1. CASH transactions get a unique sequence number and bypass linking
+        if (request.paymentMethod() == PaymentMethod.CASH) {
+            if (request.operationNumber() != null && !request.operationNumber().isBlank()) {
+                transaction.setOperationNumber(request.operationNumber());
+            } else {
+                String shortUuid = UUID.randomUUID().toString().substring(0, 8).toUpperCase();
+                transaction.setOperationNumber("CASH-" + shortUuid);
+            }
+            return repository.save(transaction);
+        }
+
+        // Set operation number if sent by the request (e.g. manually entered)
+        if (request.operationNumber() != null && !request.operationNumber().isBlank()) {
+            transaction.setOperationNumber(request.operationNumber());
+        }
+
+        // 2. Non-CASH (DEBIT/CREDIT) manual transactions try to link with existing unlinked BANK transactions
+        List<Transaction> candidates = repository.findCandidates(
+                transaction.getUserId(),
+                TransactionSource.BANK,
+                LinkStatus.UNLINKED,
+                transaction.getAmount(),
+                transaction.getDate().minusDays(3),
+                transaction.getDate().plusDays(3)
+        );
+
+        Transaction bestMatch = null;
+        for (Transaction candidate : candidates) {
+            // Verify bankName matches if both specify it
+            if (transaction.getBankName() != null && candidate.getBankName() != null) {
+                if (!transaction.getBankName().equalsIgnoreCase(candidate.getBankName())) {
+                    continue; // Different banks, skip
+                }
+            }
+            // Prioritize matching by operationNumber if specified in the manual transaction
+            if (transaction.getOperationNumber() != null && candidate.getOperationNumber() != null) {
+                if (transaction.getOperationNumber().equalsIgnoreCase(candidate.getOperationNumber())) {
+                    bestMatch = candidate;
+                    break;
+                }
+            } else if (isDescriptionSimilar(transaction.getDescription(), candidate.getDescription())) {
+                bestMatch = candidate;
+                break;
+            } else if (bestMatch == null) {
+                bestMatch = candidate;
+            }
+        }
+
+        if (bestMatch != null) {
+            transaction.setLinkStatus(LinkStatus.LINKED);
+            transaction.setOperationNumber(bestMatch.getOperationNumber());
+            Transaction savedManual = repository.save(transaction);
+
+            bestMatch.setLinkStatus(LinkStatus.LINKED);
+            bestMatch.setLinkedTransactionId(savedManual.getId());
+            repository.save(bestMatch);
+
+            savedManual.setLinkedTransactionId(bestMatch.getId());
+            return repository.save(savedManual);
+        }
+
         return repository.save(transaction);
+    }
+
+    private boolean isDescriptionSimilar(String desc1, String desc2) {
+        if (desc1 == null || desc2 == null) {
+            return false;
+        }
+        String d1 = desc1.toLowerCase().replaceAll("[^a-z0-9]", " ").trim();
+        String d2 = desc2.toLowerCase().replaceAll("[^a-z0-9]", " ").trim();
+        if (d1.isEmpty() || d2.isEmpty()) {
+            return false;
+        }
+        return d1.contains(d2) || d2.contains(d1);
     }
 
     /**

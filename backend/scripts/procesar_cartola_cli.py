@@ -34,11 +34,12 @@ ALIAS_ENCABEZADO = {
     "monto":       ["MONTO DE TRANSACCION", "NET_AMOUNT", "NET AMOUNT", "AMOUNT",
                     "MONTO", "IMPORTE", "VALOR"],
     "saldo":       ["SALDO", "BALANCE"],
+    "nro_operacion": ["N° Operación","NRO OPERACION", "NRO. OPERACION", "NRO_OPERACION", "OPERATION NUMBER", "OPERATION_NUMBER", "OPERATION", "NRO DOCUMENTO", "NRO. DOCUMENTO", "NRO_DOCUMENTO", "DOCUMENTO", "NRO DOCTO", "NRO. DOCTO", "NRO_DOCTO", "NUM DOC", "NUM_DOC", "NRO TRANSACCION", "NRO. TRANSACCION", "NRO_TRANSACCION", "TRANSACTION ID", "TRANSACTION_ID", "REFERENCIA", "REFERENCE"],
 }
 
 NOMBRE_CANONICO = {
     "fecha": "FECHA", "descripcion": "DESCRIPCION", "cargo": "CARGO",
-    "abono": "ABONO", "monto": "MONTO", "saldo": "SALDO",
+    "abono": "ABONO", "monto": "MONTO", "saldo": "SALDO", "nro_operacion": "NRO_OPERACION",
 }
 
 # Meses en español (abreviados y completos) -> número.
@@ -140,6 +141,28 @@ def limpiar_numero(x):
     except ValueError:
         return np.nan
     return -val if negativo and val > 0 else val
+
+
+def limpiar_nro_operacion(x):
+    """Limpia el número de operación convirtiéndolo a string y removiendo decimales vacíos (.0)."""
+    if x is None or (isinstance(x, float) and np.isnan(x)):
+        return None
+    s = str(x).strip()
+    if s.endswith(".0"):
+        s = s[:-2]
+    return s if s else None
+
+
+def extraer_nro_operacion_de_desc(desc: str) -> str | None:
+    """Intenta extraer un número de operación desde el texto de la descripción usando patrones comunes."""
+    if not desc or (isinstance(desc, float) and np.isnan(desc)):
+        return None
+    desc_str = str(desc).strip()
+    # Buscar patrones comunes como TEF 123456, TRANSF. 12345, DOCTO: 1234, etc.
+    match = re.search(r'\b(?:TEF|TRANSF|TRANSFERENCIA|DOCTO|DOC|CHEQUE|OPERACION|OP|REF|NRO|NUM)\b\s*#?[:.-]?\s*(\d{3,})', desc_str, re.IGNORECASE)
+    if match:
+        return match.group(1)
+    return None
 
 def _preparar_fecha_str(valor, anio_defecto: int) -> str:
     s = _sin_acentos(str(valor)).upper().strip()
@@ -481,7 +504,7 @@ def agregar_feriados(df: pd.DataFrame, pais: str = "CL") -> pd.DataFrame:
 
 # insertar en DB
 COLUMNAS_FINALES = ["FECHA", "DESCRIPCION", "CATEGORIA", "TIPO_MOVIMIENTO",
-                    "MONTO", "SALDO", "FERIADO"]
+                    "MONTO", "SALDO", "FERIADO", "NRO_OPERACION"]
 
 
 def finalizar_esquema(df: pd.DataFrame) -> pd.DataFrame:
@@ -496,6 +519,7 @@ def finalizar_esquema(df: pd.DataFrame) -> pd.DataFrame:
     salida["MONTO"] = df.get("monto")
     salida["SALDO"] = df["SALDO"] if "SALDO" in df.columns else np.nan
     salida["FERIADO"] = df.get("FERIADO")
+    salida["NRO_OPERACION"] = df["NRO_OPERACION"] if "NRO_OPERACION" in df.columns else np.nan
     return salida[COLUMNAS_FINALES].reset_index(drop=True)
 
 
@@ -529,6 +553,21 @@ def procesar_cartola(ruta: str, anio_defecto: int | None = None,
     df = extraer_tabla(raw, fila)
     df = normalizar_montos(df)
     df = agregar_fecha(df, anio_defecto)
+
+    # Aseguramos que NRO_OPERACION exista en el dataframe y esté limpio
+    if "NRO_OPERACION" not in df.columns:
+        df["NRO_OPERACION"] = None
+    else:
+        df["NRO_OPERACION"] = df["NRO_OPERACION"].map(limpiar_nro_operacion)
+
+    # Si es nulo/vacío, intentamos extraer de la columna DESCRIPCION
+    desc_col = "DESCRIPCION" if "DESCRIPCION" in df.columns else None
+    if desc_col:
+        df["NRO_OPERACION"] = df.apply(
+            lambda r: r["NRO_OPERACION"] if (r["NRO_OPERACION"] is not None and str(r["NRO_OPERACION"]).strip() != "")
+                      else extraer_nro_operacion_de_desc(r[desc_col]),
+            axis=1
+        )
 
     n_antes = len(df)
     df = limpiar_dataframe(df)
@@ -565,6 +604,7 @@ def _fila_a_dict(fila) -> dict:
         "monto": None if pd.isna(fila["MONTO"]) else float(fila["MONTO"]),
         "saldo": None if pd.isna(fila["SALDO"]) else float(fila["SALDO"]),
         "feriado": bool(fila["FERIADO"]) if pd.notna(fila["FERIADO"]) else False,
+        "nro_operacion": None if pd.isna(fila["NRO_OPERACION"]) else str(fila["NRO_OPERACION"]),
     }
 
 

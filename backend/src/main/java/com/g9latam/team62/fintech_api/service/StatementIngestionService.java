@@ -8,6 +8,7 @@ import com.g9latam.team62.fintech_api.model.Category;
 import com.g9latam.team62.fintech_api.model.CategoryMethod;
 import com.g9latam.team62.fintech_api.model.Currency;
 import com.g9latam.team62.fintech_api.model.LinkStatus;
+import com.g9latam.team62.fintech_api.model.PaymentMethod;
 import com.g9latam.team62.fintech_api.model.Transaction;
 import com.g9latam.team62.fintech_api.model.TransactionSource;
 import com.g9latam.team62.fintech_api.repository.UserRepository;
@@ -136,6 +137,13 @@ public class StatementIngestionService {
                     transaction.setSource(TransactionSource.BANK);
                     transaction.setLinkStatus(LinkStatus.UNLINKED);
                     transaction.setBankName(detectedBank);
+                    transaction.setPaymentMethod(PaymentMethod.DEBIT);
+
+                    String opNum = txNode.hasNonNull("nro_operacion") ? txNode.path("nro_operacion").asText(null) : null;
+                    if (opNum != null && opNum.isBlank()) {
+                        opNum = null;
+                    }
+                    transaction.setOperationNumber(opNum);
 
                     // Clasificación por 4 niveles
                     if (desc != null && !desc.isBlank()) {

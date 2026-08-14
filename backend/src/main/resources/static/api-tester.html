@@ -181,6 +181,24 @@
                                         <option value="CASH">Efectivo</option>
                                     </select>
                                 </div>
+                                <div class="form-group">
+                                    <label for="manualBankName">Banco</label>
+                                    <select id="manualBankName">
+                                        <option value="Manual" selected>Manual / Ninguno</option>
+                                        <option value="BANCO_CHILE">Banco de Chile</option>
+                                        <option value="CUENTA_RUT">Cuenta RUT (BancoEstado)</option>
+                                        <option value="FALABELLA">Banco Falabella</option>
+                                        <option value="MERCADO_PAGO">Mercado Pago</option>
+                                        <option value="SANTANDER">Banco Santander</option>
+                                        <option value="BCI">BCI</option>
+                                        <option value="ITAU">Itaú</option>
+                                        <option value="SCOTIABANK">Scotiabank</option>
+                                    </select>
+                                </div>
+                                <div class="form-group">
+                                    <label for="manualOpNumber">N° de Operación (Opcional)</label>
+                                    <input type="text" id="manualOpNumber" placeholder="Ej. OP-12345">
+                                </div>
                             </div>
                             <button class="btn btn-accent" onclick="executeWorkflowCreateManualTx()">
                                 ➕ Guardar Transacción Manual
@@ -713,7 +731,8 @@
                 description: document.getElementById('manualDesc').value,
                 currency: { id: 1, name_currency: 'CLP' },
                 paymentMethod: document.getElementById('manualMethod').value,
-                bankName: 'Manual'
+                bankName: document.getElementById('manualBankName').value,
+                operationNumber: document.getElementById('manualOpNumber').value || null
             };
 
             const res = await makeApiCall(`${getBaseUrl()}/api/transactions/manual`, 'POST', payload);

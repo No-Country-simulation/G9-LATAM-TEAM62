@@ -10,6 +10,8 @@ import com.g9latam.team62.fintech_api.repository.CategoryBudgetTargetRepository;
 import com.g9latam.team62.fintech_api.repository.RecommendationRepository;
 import com.g9latam.team62.fintech_api.repository.TransactionRepository;
 import com.g9latam.team62.fintech_api.repository.UserRepository;
+import com.g9latam.team62.fintech_api.model.LinkStatus;
+import com.g9latam.team62.fintech_api.model.TransactionSource;
 
 import org.springframework.lang.NonNull;
 import org.springframework.stereotype.Service;
@@ -111,6 +113,10 @@ public class BudgetRecommendationService {
             }
             if (isLikelyTransfer(t)) {
                 continue; // Excluye transferencias internas del cálculo de consumo
+            }
+            // Evitar doble conteo: si una transacción manual está vinculada, se omite porque ya se cuenta la bancaria
+            if (t.getSource() == TransactionSource.MANUAL && t.getLinkStatus() == LinkStatus.LINKED) {
+                continue;
             }
             totals.merge(t.getCategory(), t.getAmount(), (a, b) -> a.add(b));
         }

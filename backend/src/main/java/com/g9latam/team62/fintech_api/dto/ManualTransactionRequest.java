@@ -15,5 +15,6 @@ public record ManualTransactionRequest(
         String description,
         Currency currency,
         PaymentMethod paymentMethod,
-        String bankName
+        String bankName,
+        String operationNumber
 ) {}
