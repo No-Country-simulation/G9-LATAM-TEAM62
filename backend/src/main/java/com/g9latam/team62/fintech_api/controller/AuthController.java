@@ -2,6 +2,8 @@ package com.g9latam.team62.fintech_api.controller;
 
 import com.g9latam.team62.fintech_api.dto.AuthResponse;
 import com.g9latam.team62.fintech_api.dto.LoginRequest;
+import com.g9latam.team62.fintech_api.dto.RegisterRequest;
+import com.g9latam.team62.fintech_api.dto.UserResponseDTO;
 import com.g9latam.team62.fintech_api.model.User;
 import com.g9latam.team62.fintech_api.security.CustomUserDetailsService;
 import com.g9latam.team62.fintech_api.security.JwtService;
@@ -51,7 +53,7 @@ public class AuthController {
             User user = service.authenticate(request.email(), request.password());
             UserDetails userDetails = userDetailsService.loadUserByUsername(user.getEmail());
             String token = jwtService.generateToken(userDetails);
-            return ResponseEntity.ok(new AuthResponse(token, user));
+            return ResponseEntity.ok(new AuthResponse(token, UserResponseDTO.fromEntity(user)));
         } catch (IllegalArgumentException e) {
             return ResponseEntity.status(HttpStatus.UNAUTHORIZED)
                     .body(Map.of("error", e.getMessage()));
@@ -62,11 +64,11 @@ public class AuthController {
     @Operation(summary = "Registrar nuevo usuario", description = "Crea un nuevo usuario en la plataforma.")
     @ApiResponses({
             @ApiResponse(responseCode = "201", description = "Usuario registrado exitosamente",
-                    content = @Content(mediaType = "application/json", schema = @Schema(implementation = User.class))),
+                    content = @Content(mediaType = "application/json", schema = @Schema(implementation = UserResponseDTO.class))),
             @ApiResponse(responseCode = "400", description = "Datos de entrada inválidos")
     })
-    public ResponseEntity<User> register(@Valid @RequestBody User user) {
-        User created = service.create(user);
-        return ResponseEntity.status(HttpStatus.CREATED).body(created);
+    public ResponseEntity<UserResponseDTO> register(@Valid @RequestBody RegisterRequest request) {
+        User created = service.create(request);
+        return ResponseEntity.status(HttpStatus.CREATED).body(UserResponseDTO.fromEntity(created));
     }
 }

@@ -2,6 +2,7 @@ package com.g9latam.team62.fintech_api.controller;
 
 import com.g9latam.team62.fintech_api.dto.ChangePasswordRequest;
 import com.g9latam.team62.fintech_api.dto.ProfileUpdateRequest;
+import com.g9latam.team62.fintech_api.dto.UserResponseDTO;
 import com.g9latam.team62.fintech_api.model.User;
 import com.g9latam.team62.fintech_api.service.UserService;
 import jakarta.validation.Valid;
@@ -41,19 +42,22 @@ public class UserController {
 
     @GetMapping
     @Operation(summary = "Obtener todos los usuarios", description = "Retorna una colección de todos los usuarios registrados.")
-    public Collection<User> findAll() {
-        return service.findAll();
+    public Collection<UserResponseDTO> findAll() {
+        return service.findAll().stream()
+                .map(UserResponseDTO::fromEntity)
+                .toList();
     }
 
     @GetMapping("/{id}")
     @Operation(summary = "Obtener usuario por ID", description = "Retorna el usuario correspondiente al ID provisto.")
     @ApiResponses({
             @ApiResponse(responseCode = "200", description = "Usuario encontrado",
-                    content = @Content(mediaType = "application/json", schema = @Schema(implementation = User.class))),
+                    content = @Content(mediaType = "application/json", schema = @Schema(implementation = UserResponseDTO.class))),
             @ApiResponse(responseCode = "404", description = "Usuario no encontrado")
     })
-    public ResponseEntity<User> findById(@PathVariable @NonNull Long id) {
+    public ResponseEntity<UserResponseDTO> findById(@PathVariable @NonNull Long id) {
         return service.findById(id)
+                .map(UserResponseDTO::fromEntity)
                 .map(ResponseEntity::ok)
                 .orElse(ResponseEntity.notFound().build());
     }
@@ -63,29 +67,29 @@ public class UserController {
     @Operation(summary = "Actualizar usuario", description = "Actualiza toda la información de un usuario existente.")
     @ApiResponses({
             @ApiResponse(responseCode = "200", description = "Usuario actualizado con éxito",
-                    content = @Content(mediaType = "application/json", schema = @Schema(implementation = User.class))),
+                    content = @Content(mediaType = "application/json", schema = @Schema(implementation = UserResponseDTO.class))),
             @ApiResponse(responseCode = "404", description = "Usuario no encontrado")
     })
-    public ResponseEntity<User> update(@PathVariable @NonNull Long id, @Valid @RequestBody User user) {
+    public ResponseEntity<UserResponseDTO> update(@PathVariable @NonNull Long id, @Valid @RequestBody User user) {
         if (service.findById(id).isEmpty()) {
             return ResponseEntity.notFound().build();
         }
-        return ResponseEntity.ok(service.update(id, user));
+        return ResponseEntity.ok(UserResponseDTO.fromEntity(service.update(id, user)));
     }
 
     @PutMapping("/{id}/profile")
     @Operation(summary = "Actualizar perfil de usuario", description = "Actualiza campos específicos del perfil de un usuario (por ejemplo, teléfono, dirección, etc.).")
     @ApiResponses({
             @ApiResponse(responseCode = "200", description = "Perfil actualizado con éxito",
-                    content = @Content(mediaType = "application/json", schema = @Schema(implementation = User.class))),
+                    content = @Content(mediaType = "application/json", schema = @Schema(implementation = UserResponseDTO.class))),
             @ApiResponse(responseCode = "404", description = "Usuario no encontrado")
     })
-    public ResponseEntity<User> updateProfile(@PathVariable @NonNull Long id,
+    public ResponseEntity<UserResponseDTO> updateProfile(@PathVariable @NonNull Long id,
                                               @Valid @RequestBody ProfileUpdateRequest request) {
         if (service.findById(id).isEmpty()) {
             return ResponseEntity.notFound().build();
         }
-        return ResponseEntity.ok(service.updateProfile(id, request));
+        return ResponseEntity.ok(UserResponseDTO.fromEntity(service.updateProfile(id, request)));
     }
 
     @DeleteMapping("/{id}")

@@ -1,5 +1,6 @@
 package com.g9latam.team62.fintech_api;
 
+import com.g9latam.team62.fintech_api.dto.RegisterRequest;
 import com.g9latam.team62.fintech_api.model.Category;
 import com.g9latam.team62.fintech_api.model.Currency;
 import com.g9latam.team62.fintech_api.model.Recommendation;
@@ -104,13 +105,8 @@ class PersistenceIntegrationTests {
         assertThat(recommendationRepository.findByUserId(user.getId())).isEmpty();
     }
 
-    private User newUser(String email) {
-        User user = new User();
-        user.setName("Ada");
-        user.setEmail(email);
-        user.setPassword("secret");
-        user.setMonthlyIncome(new BigDecimal("3000.00"));
-        return user;
+    private RegisterRequest newUser(String email) {
+        return new RegisterRequest("Ada", email, "secret");
     }
 
     private Transaction newTransaction(Long userId, Currency currency) {

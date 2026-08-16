@@ -4,6 +4,7 @@ import lombok.AllArgsConstructor;
 import lombok.Data;
 import lombok.NoArgsConstructor;
 
+import java.math.BigDecimal;
 import java.time.LocalDateTime;
 
 import jakarta.persistence.Entity;
@@ -28,6 +29,6 @@ public class FinancialProfileHistory {
     
     @Enumerated(EnumType.STRING)
     private FinancialProfile financialProfile;
-    private Double profileAccuracy;
+    private BigDecimal profileAccuracy;
     private LocalDateTime createdAt = LocalDateTime.now();
 }

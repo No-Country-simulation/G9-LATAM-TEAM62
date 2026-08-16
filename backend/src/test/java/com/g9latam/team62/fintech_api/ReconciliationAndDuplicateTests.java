@@ -6,6 +6,7 @@ import com.g9latam.team62.fintech_api.model.Currency;
 import com.g9latam.team62.fintech_api.model.LinkStatus;
 import com.g9latam.team62.fintech_api.model.PaymentMethod;
 import com.g9latam.team62.fintech_api.model.Transaction;
+import com.g9latam.team62.fintech_api.dto.RegisterRequest;
 import com.g9latam.team62.fintech_api.model.TransactionSource;
 import com.g9latam.team62.fintech_api.model.User;
 import com.g9latam.team62.fintech_api.repository.TransactionRepository;
@@ -356,13 +357,8 @@ class ReconciliationAndDuplicateTests {
         assertThat(manualRefreshed.getLinkedTransactionId()).isEqualTo(bankSaved.getId());
     }
 
-    private User newUser(String email) {
-        User user = new User();
-        user.setName("Test User");
-        user.setEmail(email);
-        user.setPassword("secret");
-        user.setMonthlyIncome(new BigDecimal("3000.00"));
-        return user;
+    private RegisterRequest newUser(String email) {
+        return new RegisterRequest("Test User", email, "secret");
     }
 
     private Currency currencyNamed(String name) {

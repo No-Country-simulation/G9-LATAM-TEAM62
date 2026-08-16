@@ -68,7 +68,7 @@ public class User {
     @DecimalMin("0.0")
     @DecimalMax("1.0")
     @Column(name = "profile_accuracy")
-    private Double profileAccuracy;
+    private BigDecimal profileAccuracy;
 
     @Column(name = "profile_updated_at")
     private LocalDateTime profileUpdatedAt;

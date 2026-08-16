@@ -1,7 +1,10 @@
 package com.g9latam.team62.fintech_api.service;
 
 import com.g9latam.team62.fintech_api.dto.ProfileUpdateRequest;
+import com.g9latam.team62.fintech_api.dto.RegisterRequest;
+import com.g9latam.team62.fintech_api.model.FinancialProfileHistory;
 import com.g9latam.team62.fintech_api.model.User;
+import com.g9latam.team62.fintech_api.repository.FinancialProfileHistoryRepository;
 import com.g9latam.team62.fintech_api.repository.RecommendationRepository;
 import com.g9latam.team62.fintech_api.repository.TransactionRepository;
 import com.g9latam.team62.fintech_api.repository.UserRepository;
@@ -11,8 +14,8 @@ import org.springframework.transaction.annotation.Transactional;
 
 import java.time.LocalDateTime;
 import java.util.Collection;
-import org.springframework.lang.NonNull;
 import java.util.Optional;
+import org.springframework.lang.NonNull;
 
 @Service
 @Transactional(readOnly = true)
@@ -21,12 +24,12 @@ public class UserService {
     private final UserRepository repository;
     private final TransactionRepository transactionRepository;
     private final RecommendationRepository recommendationRepository;
-    private final com.g9latam.team62.fintech_api.repository.FinancialProfileHistoryRepository historyRepository;
+    private final FinancialProfileHistoryRepository historyRepository;
     private final PasswordEncoder passwordEncoder;
 
     public UserService(UserRepository repository, TransactionRepository transactionRepository,
                        RecommendationRepository recommendationRepository,
-                       com.g9latam.team62.fintech_api.repository.FinancialProfileHistoryRepository historyRepository,
+                       FinancialProfileHistoryRepository historyRepository,
                        PasswordEncoder passwordEncoder) {
         this.repository = repository;
         this.transactionRepository = transactionRepository;
@@ -36,14 +39,16 @@ public class UserService {
     }
 
     @Transactional
-    public User create(User user) {
-        requireEmailAvailable(user.getEmail(), null);
-        user.setId(null);
-        user.setPassword(passwordEncoder.encode(user.getPassword()));
-        // profile fields are only written through updateProfile
-        user.setFinancialProfile(null);
-        user.setProfileAccuracy(null);
-        user.setProfileUpdatedAt(null);
+    public User create(RegisterRequest request) {
+        requireEmailAvailable(request.email(), null);
+        
+        // Creamos una entidad limpia desde cero
+        User user = new User();
+        user.setName(request.name());
+        user.setEmail(request.email());
+        user.setPassword(passwordEncoder.encode(request.password()));
+        
+        // No necesitamos setear ID ni perfiles a null, ¡porque ya son null al nacer!
         return repository.save(user);
     }
 
@@ -80,7 +85,7 @@ public class UserService {
         user.setProfileUpdatedAt(LocalDateTime.now());
 
         // Registra la entrada en el historial de evolución del perfil financiero
-        historyRepository.save(new com.g9latam.team62.fintech_api.model.FinancialProfileHistory(
+        historyRepository.save(new FinancialProfileHistory(
                 null, id, request.financialProfile(), request.profileAccuracy(), LocalDateTime.now()
         ));
 
