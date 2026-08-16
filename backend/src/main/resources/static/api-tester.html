@@ -55,6 +55,9 @@
             <button class="tab-btn" onclick="switchTab('endpointsTab', this)">
                 ⚡ Probador de Endpoints Individuales
             </button>
+            <button class="tab-btn" onclick="switchTab('securityTab', this)">
+                🔒 Prueba de Seguridad (Authz/IDOR)
+            </button>
         </div>
 
         <!-- ==================== TAB 1: WORKFLOW PASO A PASO ==================== -->
@@ -465,6 +468,81 @@
             </div>
         </div>
 
+        <!-- ==================== TAB 3: PRUEBA DE SEGURIDAD ==================== -->
+        <div id="securityTab" class="tab-content">
+            <div class="main-layout">
+                <div>
+                    <div class="card" style="margin-bottom: 20px;">
+                        <div class="card-title" style="margin-bottom: 14px;">
+                            🛡️ Suite de Validación de Seguridad (IDOR / BOLA / CORS)
+                        </div>
+                        <p style="font-size: 14px; color: var(--text-muted); margin-bottom: 16px;">
+                            Esta sección te permite simular peticiones maliciosas e intentos de acceso no autorizados para comprobar que la protección contra IDOR/BOLA en el backend funcione correctamente.
+                        </p>
+
+                        <div class="form-grid" style="margin-bottom: 20px;">
+                            <div class="form-group">
+                                <label for="secVictimUserId">ID del Usuario Víctima (Otro Usuario)</label>
+                                <input type="number" id="secVictimUserId" value="999">
+                            </div>
+                            <div class="form-group">
+                                <label for="secVictimTxId">ID de Transacción de la Víctima</label>
+                                <input type="number" id="secVictimTxId" value="999">
+                            </div>
+                        </div>
+
+                        <div style="display: grid; grid-template-columns: 1fr; gap: 12px; margin-bottom: 20px;">
+                            <button class="btn btn-outline" onclick="testIdorFetchProfile()">
+                                🔍 Intentar ver perfil de la víctima (GET /api/users/{id})
+                            </button>
+                            <button class="btn btn-outline" onclick="testIdorUpdateProfile()">
+                                ✏️ Intentar actualizar perfil de la víctima (PUT /api/users/{id}/profile)
+                            </button>
+                            <button class="btn btn-outline" onclick="testIdorFetchTransaction()">
+                                💸 Intentar ver transacción ajena (GET /api/transactions/{id})
+                            </button>
+                            <button class="btn btn-outline" onclick="testIdorDeleteTransaction()">
+                                🗑️ Intentar borrar transacción ajena (DELETE /api/transactions/{id})
+                            </button>
+                        </div>
+
+                        <div style="border-top: 1px solid var(--border); padding-top: 20px; margin-top: 20px;">
+                            <div class="card-title" style="margin-bottom: 10px; font-size: 15px;">
+                                🌐 Simulación de Origen CORS Diferente
+                            </div>
+                            <p style="font-size: 13px; color: var(--text-muted); margin-bottom: 12px;">
+                                Verifica la presencia de las cabeceras CORS requeridas enviando una simulación de solicitud preflight (OPTIONS).
+                            </p>
+                            <button class="btn btn-outline" onclick="checkCorsHeaders()">
+                                📡 Verificar cabeceras CORS en preflight (OPTIONS)
+                            </button>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- LADO DERECHO: VISOR DE RESPUESTA TAB 3 -->
+                <div class="response-container">
+                    <div class="card">
+                        <div class="card-header">
+                            <div class="card-title">
+                                📡 Visor de Respuesta de Seguridad
+                            </div>
+                            <button class="btn btn-outline btn-sm" onclick="copyResponseJSON()">
+                                📋 Copiar JSON
+                            </button>
+                        </div>
+
+                        <div class="response-meta">
+                            <div class="status-badge status-none" id="responseStatusSec">Status: ---</div>
+                            <div class="latency-badge" id="responseLatencySec">Latencia: -- ms</div>
+                        </div>
+
+                        <pre class="json-viewer" id="jsonViewerSec">// Las respuestas de las pruebas de seguridad aparecerán aquí...</pre>
+                    </div>
+                </div>
+            </div>
+        </div>
+
     </div>
 
     <script>
@@ -559,9 +637,19 @@
         // ==================== HTTP FETCH UTILITIES ====================
         async function makeApiCall(url, method = 'GET', body = null, isMultipart = false, customTargetViewer = null) {
             const startTime = performance.now();
-            const statusBadge = customTargetViewer === 'ep' ? document.getElementById('responseStatusEp') : document.getElementById('responseStatus');
-            const latencyBadge = customTargetViewer === 'ep' ? document.getElementById('responseLatencyEp') : document.getElementById('responseLatency');
-            const viewer = customTargetViewer === 'ep' ? document.getElementById('jsonViewerEp') : document.getElementById('jsonViewer');
+            let statusBadge = document.getElementById('responseStatus');
+            let latencyBadge = document.getElementById('responseLatency');
+            let viewer = document.getElementById('jsonViewer');
+
+            if (customTargetViewer === 'ep') {
+                statusBadge = document.getElementById('responseStatusEp');
+                latencyBadge = document.getElementById('responseLatencyEp');
+                viewer = document.getElementById('jsonViewerEp');
+            } else if (customTargetViewer === 'sec') {
+                statusBadge = document.getElementById('responseStatusSec');
+                latencyBadge = document.getElementById('responseLatencySec');
+                viewer = document.getElementById('jsonViewerSec');
+            }
 
             viewer.innerHTML = '<span class="loader"></span> Procesando petición...';
 
@@ -651,7 +739,12 @@
 
         function copyResponseJSON() {
             const activeTab = document.querySelector('.tab-content.active').id;
-            const targetId = activeTab === 'endpointsTab' ? 'jsonViewerEp' : 'jsonViewer';
+            let targetId = 'jsonViewer';
+            if (activeTab === 'endpointsTab') {
+                targetId = 'jsonViewerEp';
+            } else if (activeTab === 'securityTab') {
+                targetId = 'jsonViewerSec';
+            }
             const viewer = document.getElementById(targetId);
             navigator.clipboard.writeText(viewer.textContent).then(() => {
                 alert('JSON copiado al portapapeles.');
@@ -1109,6 +1202,72 @@
                 await makeApiCall(url, config.method, bodyText, false, 'ep');
             } else {
                 await makeApiCall(url, config.method, null, false, 'ep');
+            }
+        }
+
+        // ==================== SECURITY TESTER FUNCTIONS ====================
+        async function testIdorFetchProfile() {
+            const victimId = document.getElementById('secVictimUserId').value || '999';
+            await makeApiCall(`${getBaseUrl()}/api/users/${victimId}`, 'GET', null, false, 'sec');
+        }
+
+        async function testIdorUpdateProfile() {
+            const victimId = document.getElementById('secVictimUserId').value || '999';
+            const payload = {
+                financialProfile: 'BALANCED',
+                profileAccuracy: 0.99,
+                savingFrequency: 'MONTHLY'
+            };
+            await makeApiCall(`${getBaseUrl()}/api/users/${victimId}/profile`, 'PUT', payload, false, 'sec');
+        }
+
+        async function testIdorFetchTransaction() {
+            const victimTxId = document.getElementById('secVictimTxId').value || '999';
+            await makeApiCall(`${getBaseUrl()}/api/transactions/${victimTxId}`, 'GET', null, false, 'sec');
+        }
+
+        async function testIdorDeleteTransaction() {
+            const victimTxId = document.getElementById('secVictimTxId').value || '999';
+            await makeApiCall(`${getBaseUrl()}/api/transactions/${victimTxId}`, 'DELETE', null, false, 'sec');
+        }
+
+        async function checkCorsHeaders() {
+            const startTime = performance.now();
+            const statusBadge = document.getElementById('responseStatusSec');
+            const latencyBadge = document.getElementById('responseLatencySec');
+            const viewer = document.getElementById('jsonViewerSec');
+
+            viewer.innerHTML = '<span class="loader"></span> Simulando OPTIONS preflight...';
+
+            try {
+                const response = await fetch(`${getBaseUrl()}/api/auth/login`, {
+                    method: 'OPTIONS',
+                    headers: {
+                        'Access-Control-Request-Method': 'POST',
+                        'Access-Control-Request-Headers': 'content-type',
+                        'Origin': 'http://127.0.0.1:5500'
+                    }
+                });
+
+                const endTime = performance.now();
+                const latency = Math.round(endTime - startTime);
+
+                statusBadge.textContent = `${response.status} ${response.statusText}`;
+                latencyBadge.textContent = `Latencia: ${latency} ms`;
+                statusBadge.className = response.ok ? 'status-badge status-2xx' : 'status-badge status-4xx';
+
+                const headersObj = {};
+                response.headers.forEach((value, key) => {
+                    headersObj[key] = value;
+                });
+
+                viewer.innerHTML = `<strong>Cabeceras de Respuesta CORS en OPTIONS:</strong>\n\n` + syntaxHighlightJson(headersObj);
+            } catch (error) {
+                const endTime = performance.now();
+                statusBadge.className = 'status-badge status-5xx';
+                statusBadge.textContent = 'Error CORS / Red';
+                latencyBadge.textContent = `Latencia: ${Math.round(endTime - startTime)} ms`;
+                viewer.textContent = `[Error]: ${error.message}\n\nSi el navegador bloqueó la petición por política de mismo origen, el CORS está funcionando correctamente en el backend.`;
             }
         }
     </script>

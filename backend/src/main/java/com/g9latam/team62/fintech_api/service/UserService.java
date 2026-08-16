@@ -21,6 +21,7 @@ import org.springframework.lang.NonNull;
 @Transactional(readOnly = true)
 public class UserService {
 
+    private final LoginAttemptService loginAttemptService;
     private final UserRepository repository;
     private final TransactionRepository transactionRepository;
     private final RecommendationRepository recommendationRepository;
@@ -30,12 +31,13 @@ public class UserService {
     public UserService(UserRepository repository, TransactionRepository transactionRepository,
                        RecommendationRepository recommendationRepository,
                        FinancialProfileHistoryRepository historyRepository,
-                       PasswordEncoder passwordEncoder) {
+                       PasswordEncoder passwordEncoder, LoginAttemptService loginAttemptService) {
         this.repository = repository;
         this.transactionRepository = transactionRepository;
         this.recommendationRepository = recommendationRepository;
         this.historyRepository = historyRepository;
         this.passwordEncoder = passwordEncoder;
+        this.loginAttemptService = loginAttemptService;
     }
 
     @Transactional
@@ -58,6 +60,10 @@ public class UserService {
 
     public Optional<User> findById(@NonNull Long id) {
         return repository.findById(id);
+    }
+
+    public Optional<User> findByEmail(@NonNull String email) {
+        return repository.findByEmail(email);
     }
 
     @Transactional
@@ -93,13 +99,25 @@ public class UserService {
     }
 
     public User authenticate(String email, String rawPassword) {
-        User user = repository.findByEmail(email)
-                .orElseThrow(() -> new IllegalArgumentException("No existe correo en nuestro sistema"));
-        if (!passwordEncoder.matches(rawPassword, user.getPassword())) {
-            throw new IllegalArgumentException("Contraseña incorrecta");
+        if (loginAttemptService.isBlocked(email)) {
+            throw new IllegalStateException("Cuenta bloqueada temporalmente por múltiples intentos fallidos. Intenta en 15 minutos.");
         }
+
+        User user = repository.findByEmail(email)
+                .orElseThrow(() -> {
+                    loginAttemptService.loginFailed(email);
+                    return new IllegalArgumentException("Credenciales inválidas");
+                });
+
+        if (!passwordEncoder.matches(rawPassword, user.getPassword())) {
+            loginAttemptService.loginFailed(email);
+            throw new IllegalArgumentException("Credenciales inválidas");
+        }
+
+        loginAttemptService.loginSucceeded(email);
         return user;
     }
+
 
     @Transactional
     public void changePassword(String email, String oldPassword, String newPassword) {

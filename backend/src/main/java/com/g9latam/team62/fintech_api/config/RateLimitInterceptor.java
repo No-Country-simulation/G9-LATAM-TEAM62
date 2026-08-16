@@ -28,6 +28,11 @@ public class RateLimitInterceptor implements HandlerInterceptor {
             @NonNull HttpServletRequest request,
             @NonNull HttpServletResponse response,
             @NonNull Object handler) throws Exception {
+        // Las peticiones preflight OPTIONS no deben verse afectadas por el límite de peticiones (CORS)
+        if ("OPTIONS".equalsIgnoreCase(request.getMethod())) {
+            return true;
+        }
+
         // Resuelve de forma segura la IP del cliente. Para prevenir suplantación de cabeceras en producción detrás de
         // proxies inversos (Nginx, AWS, Cloudflare, etc.), se debe configurar `server.forward-headers-strategy=framework`
         // en application.properties. Spring Boot validará X-Forwarded-For de forma segura.

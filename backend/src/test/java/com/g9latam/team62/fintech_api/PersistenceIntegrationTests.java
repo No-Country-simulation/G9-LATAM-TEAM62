@@ -49,7 +49,7 @@ class PersistenceIntegrationTests {
         assertThat(userService.authenticate("ADA@example.com", "secret")).isNotNull();
         assertThatThrownBy(() -> userService.authenticate("ada@example.com", "wrong"))
                 .isInstanceOf(IllegalArgumentException.class)
-                .hasMessage("Contraseña incorrecta");
+                .hasMessage("Credenciales inválidas");
     }
 
     @Test
@@ -87,7 +87,7 @@ class PersistenceIntegrationTests {
 
         assertThatThrownBy(() -> userService.authenticate(email, password))
                 .isInstanceOf(IllegalArgumentException.class)
-                .hasMessage("No existe correo en nuestro sistema");
+                .hasMessage("Credenciales inválidas");
     }
 
     @Test

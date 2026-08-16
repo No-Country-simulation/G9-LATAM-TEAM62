@@ -25,6 +25,8 @@ import io.swagger.v3.oas.annotations.media.Content;
 import io.swagger.v3.oas.annotations.media.Schema;
 import io.swagger.v3.oas.annotations.Parameter;
 
+import com.g9latam.team62.fintech_api.security.AuthorizationHelper;
+import java.security.Principal;
 import java.util.Collection;
 
 @RestController
@@ -34,122 +36,150 @@ public class TransactionController {
 
     private final TransactionService service;
     private final com.g9latam.team62.fintech_api.service.StatementIngestionService statementIngestionService;
+    private final AuthorizationHelper authorizationHelper;
 
     public TransactionController(TransactionService service,
-                                 com.g9latam.team62.fintech_api.service.StatementIngestionService statementIngestionService) {
+                                 com.g9latam.team62.fintech_api.service.StatementIngestionService statementIngestionService,
+                                 AuthorizationHelper authorizationHelper) {
         this.service = service;
         this.statementIngestionService = statementIngestionService;
+        this.authorizationHelper = authorizationHelper;
     }
 
     @GetMapping
-    @Operation(summary = "Obtener todas las transacciones", description = "Retorna una colección de transacciones. Opcionalmente se puede filtrar por el ID del usuario.")
+    @Operation(summary = "Obtener todas las transacciones del usuario", description = "Retorna una colección de transacciones pertenecientes únicamente al usuario autenticado actual.")
     public Collection<Transaction> findAll(
-            @Parameter(description = "ID del usuario para filtrar las transacciones")
-            @RequestParam(required = false) Long userId) {
+            @Parameter(description = "ID del usuario para filtrar las transacciones (debe coincidir con el usuario autenticado)")
+            @RequestParam(required = false) Long userId,
+            Principal principal) {
+        com.g9latam.team62.fintech_api.model.User authUser = authorizationHelper.getAuthenticatedUser(principal);
         if (userId != null) {
+            authorizationHelper.verifyUserOwnership(principal, userId);
             return service.findByUserId(userId);
         }
-        return service.findAll();
+        // Si no se provee userId, se retorna por defecto las del usuario autenticado actual
+        return service.findByUserId(authUser.getId());
     }
 
     @GetMapping("/{id}")
-    @Operation(summary = "Obtener transacción por ID", description = "Retorna la transacción correspondiente al ID provisto.")
+    @Operation(summary = "Obtener transacción por ID", description = "Retorna la transacción correspondiente al ID provisto, validando que pertenezca al usuario autenticado.")
     @ApiResponses({
             @ApiResponse(responseCode = "200", description = "Transacción encontrada",
                     content = @Content(mediaType = "application/json", schema = @Schema(implementation = Transaction.class))),
-            @ApiResponse(responseCode = "404", description = "Transacción no encontrada")
+            @ApiResponse(responseCode = "404", description = "Transacción no encontrada"),
+            @ApiResponse(responseCode = "403", description = "Acceso denegado")
     })
-    public ResponseEntity<Transaction> findById(@PathVariable @NonNull Long id) {
-        return service.findById(id)
-                .map(ResponseEntity::ok)
-                .orElse(ResponseEntity.notFound().build());
+    public ResponseEntity<Transaction> findById(@PathVariable @NonNull Long id, Principal principal) {
+        Transaction tx = service.findById(id)
+                .orElse(null);
+        if (tx == null) {
+            return ResponseEntity.notFound().build();
+        }
+        authorizationHelper.verifyUserOwnership(principal, tx.getUserId());
+        return ResponseEntity.ok(tx);
     }
 
     @PostMapping
-    @Operation(summary = "Registrar una nueva transacción", description = "Crea una transacción financiera. Si incluye descripción, la categoría se asigna automáticamente mediante el clasificador jerárquico de 4 niveles.")
+    @Operation(summary = "Registrar una nueva transacción", description = "Crea una transacción financiera para el usuario autenticado. Se verifica que el user_id corresponda al usuario autenticado.")
     @ApiResponses({
             @ApiResponse(responseCode = "201", description = "Transacción registrada con éxito",
                     content = @Content(mediaType = "application/json", schema = @Schema(implementation = Transaction.class))),
-            @ApiResponse(responseCode = "400", description = "Datos de entrada inválidos")
+            @ApiResponse(responseCode = "400", description = "Datos de entrada inválidos"),
+            @ApiResponse(responseCode = "403", description = "Acceso denegado")
     })
-    public ResponseEntity<Transaction> create(@Valid @RequestBody Transaction transaction) {
+    public ResponseEntity<Transaction> create(@Valid @RequestBody Transaction transaction, Principal principal) {
+        authorizationHelper.verifyUserOwnership(principal, transaction.getUserId());
         Transaction created = service.create(transaction);
         return ResponseEntity.status(HttpStatus.CREATED).body(created);
     }
 
     @PostMapping("/manual")
-    @Operation(summary = "Registrar transacción manual", description = "Registra una entrada manual de dinero (efectivo/débito) asignando la fecha de hoy.")
+    @Operation(summary = "Registrar transacción manual", description = "Registra una entrada manual de dinero, validando que pertenezca al usuario autenticado.")
     @ApiResponses({
             @ApiResponse(responseCode = "201", description = "Transacción manual registrada con éxito",
                     content = @Content(mediaType = "application/json", schema = @Schema(implementation = Transaction.class))),
-            @ApiResponse(responseCode = "400", description = "Datos de entrada inválidos")
+            @ApiResponse(responseCode = "400", description = "Datos de entrada inválidos"),
+            @ApiResponse(responseCode = "403", description = "Acceso denegado")
     })
-    public ResponseEntity<Transaction> createManual(@Valid @RequestBody com.g9latam.team62.fintech_api.dto.ManualTransactionRequest request) {
+    public ResponseEntity<Transaction> createManual(@Valid @RequestBody com.g9latam.team62.fintech_api.dto.ManualTransactionRequest request, Principal principal) {
+        authorizationHelper.verifyUserOwnership(principal, request.userId());
         Transaction created = service.createManual(request);
         return ResponseEntity.status(HttpStatus.CREATED).body(created);
     }
 
     @PostMapping(value = "/upload-statement", consumes = org.springframework.http.MediaType.MULTIPART_FORM_DATA_VALUE)
-    @Operation(summary = "Subir e ingestar cartola bancaria", description = "Recibe un archivo (Excel, CSV o PDF) de cartola bancaria, invoca el script Python de limpieza y guarda las transacciones clasificadas automáticamente.")
+    @Operation(summary = "Subir e ingestar cartola bancaria", description = "Recibe una cartola, valida que el userId pertenezca al usuario autenticado, procesa e ingesta transacciones.")
     @ApiResponses({
             @ApiResponse(responseCode = "200", description = "Cartola procesada e ingesta completada con éxito"),
-            @ApiResponse(responseCode = "400", description = "Error procesando el archivo de la cartola")
+            @ApiResponse(responseCode = "400", description = "Error procesando el archivo de la cartola"),
+            @ApiResponse(responseCode = "403", description = "Acceso denegado")
     })
     public ResponseEntity<com.g9latam.team62.fintech_api.dto.StatementIngestionResult> uploadStatement(
             @RequestParam("file") org.springframework.web.multipart.MultipartFile file,
             @RequestParam("userId") @NonNull Long userId,
             @RequestParam(value = "defaultYear", required = false) Integer defaultYear,
-            @RequestParam(value = "country", required = false) String country) {
+            @RequestParam(value = "country", required = false) String country,
+            Principal principal) {
+        authorizationHelper.verifyUserOwnership(principal, userId);
         com.g9latam.team62.fintech_api.dto.StatementIngestionResult result =
                 statementIngestionService.ingestStatement(file, userId, defaultYear, country);
         return ResponseEntity.ok(result);
     }
 
     @PutMapping("/{id}")
-    @Operation(summary = "Actualizar transacción", description = "Actualiza toda la información de una transacción existente.")
+    @Operation(summary = "Actualizar transacción", description = "Actualiza toda la información de una transacción existente, validando que pertenezca al usuario autenticado.")
     @ApiResponses({
             @ApiResponse(responseCode = "200", description = "Transacción actualizada con éxito",
                     content = @Content(mediaType = "application/json", schema = @Schema(implementation = Transaction.class))),
-            @ApiResponse(responseCode = "404", description = "Transacción no encontrada")
+            @ApiResponse(responseCode = "404", description = "Transacción no encontrada"),
+            @ApiResponse(responseCode = "403", description = "Acceso denegado")
     })
-    public ResponseEntity<Transaction> update(@PathVariable @NonNull Long id, @Valid @RequestBody Transaction transaction) {
-        if (service.findById(id).isEmpty()) {
+    public ResponseEntity<Transaction> update(@PathVariable @NonNull Long id, @Valid @RequestBody Transaction transaction, Principal principal) {
+        Transaction tx = service.findById(id).orElse(null);
+        if (tx == null) {
             return ResponseEntity.notFound().build();
         }
+        authorizationHelper.verifyUserOwnership(principal, tx.getUserId());
+        authorizationHelper.verifyUserOwnership(principal, transaction.getUserId());
         return ResponseEntity.ok(service.update(id, transaction));
     }
 
     @PutMapping("/{id}/category")
     @Operation(summary = "Corregir categoría de transacción",
-               description = "Permite al usuario corregir la categoría asignada automáticamente. "
-                           + "La corrección se guarda como aprendizaje colaborativo para beneficiar "
-                           + "futuras clasificaciones de todos los usuarios.")
+               description = "Permite al usuario corregir la categoría asignada automáticamente, validando la propiedad de la transacción.")
     @ApiResponses({
             @ApiResponse(responseCode = "200", description = "Categoría actualizada con éxito",
                     content = @Content(mediaType = "application/json", schema = @Schema(implementation = Transaction.class))),
             @ApiResponse(responseCode = "404", description = "Transacción no encontrada"),
+            @ApiResponse(responseCode = "403", description = "Acceso denegado"),
             @ApiResponse(responseCode = "400", description = "Datos de entrada inválidos")
     })
     public ResponseEntity<Transaction> updateCategory(
             @Parameter(description = "ID de la transacción a corregir") @PathVariable @NonNull Long id,
-            @Valid @RequestBody CategoryCorrectionRequest request) {
-        if (service.findById(id).isEmpty()) {
+            @Valid @RequestBody CategoryCorrectionRequest request,
+            Principal principal) {
+        Transaction tx = service.findById(id).orElse(null);
+        if (tx == null) {
             return ResponseEntity.notFound().build();
         }
+        authorizationHelper.verifyUserOwnership(principal, tx.getUserId());
         Transaction updated = service.updateCategory(id, request.category());
         return ResponseEntity.ok(updated);
     }
 
     @DeleteMapping("/{id}")
-    @Operation(summary = "Eliminar transacción", description = "Elimina físicamente la transacción con el ID especificado.")
+    @Operation(summary = "Eliminar transacción", description = "Elimina físicamente la transacción con el ID especificado, validando la propiedad del recurso.")
     @ApiResponses({
             @ApiResponse(responseCode = "204", description = "Transacción eliminada con éxito"),
-            @ApiResponse(responseCode = "404", description = "Transacción no encontrada")
+            @ApiResponse(responseCode = "404", description = "Transacción no encontrada"),
+            @ApiResponse(responseCode = "403", description = "Acceso denegado")
     })
-    public ResponseEntity<Void> delete(@PathVariable @NonNull Long id) {
-        if (service.findById(id).isEmpty()) {
+    public ResponseEntity<Void> delete(@PathVariable @NonNull Long id, Principal principal) {
+        Transaction tx = service.findById(id).orElse(null);
+        if (tx == null) {
             return ResponseEntity.notFound().build();
         }
+        authorizationHelper.verifyUserOwnership(principal, tx.getUserId());
         service.delete(id);
         return ResponseEntity.noContent().build();
     }

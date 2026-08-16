@@ -25,6 +25,7 @@ import io.swagger.v3.oas.annotations.responses.ApiResponses;
 import io.swagger.v3.oas.annotations.media.Content;
 import io.swagger.v3.oas.annotations.media.Schema;
 
+import com.g9latam.team62.fintech_api.security.AuthorizationHelper;
 import java.security.Principal;
 import java.util.Collection;
 import java.util.Map;
@@ -35,27 +36,37 @@ import java.util.Map;
 public class UserController {
 
     private final UserService service;
+    private final AuthorizationHelper authorizationHelper;
 
-    public UserController(UserService service) {
+    public UserController(UserService service, AuthorizationHelper authorizationHelper) {
         this.service = service;
+        this.authorizationHelper = authorizationHelper;
     }
-
     @GetMapping
-    @Operation(summary = "Obtener todos los usuarios", description = "Retorna una colección de todos los usuarios registrados.")
-    public Collection<UserResponseDTO> findAll() {
-        return service.findAll().stream()
+    @Operation(summary = "Obtener todos los usuarios", description = "Retorna una colección que contiene únicamente al usuario autenticado actual.")
+    public Collection<UserResponseDTO> findAll(Principal principal) {
+        if (principal == null) {
+            return java.util.List.of();
+        }
+        String email = principal.getName();
+        if (email == null) {
+            return java.util.List.of();
+        }
+        return service.findByEmail(email).stream()
                 .map(UserResponseDTO::fromEntity)
                 .toList();
     }
 
     @GetMapping("/{id}")
-    @Operation(summary = "Obtener usuario por ID", description = "Retorna el usuario correspondiente al ID provisto.")
+    @Operation(summary = "Obtener usuario por ID", description = "Retorna el usuario correspondiente al ID provisto, siempre que sea el propio usuario autenticado.")
     @ApiResponses({
             @ApiResponse(responseCode = "200", description = "Usuario encontrado",
                     content = @Content(mediaType = "application/json", schema = @Schema(implementation = UserResponseDTO.class))),
-            @ApiResponse(responseCode = "404", description = "Usuario no encontrado")
+            @ApiResponse(responseCode = "404", description = "Usuario no encontrado"),
+            @ApiResponse(responseCode = "403", description = "Acceso denegado")
     })
-    public ResponseEntity<UserResponseDTO> findById(@PathVariable @NonNull Long id) {
+    public ResponseEntity<UserResponseDTO> findById(@PathVariable @NonNull Long id, Principal principal) {
+        authorizationHelper.verifyUserOwnership(principal, id);
         return service.findById(id)
                 .map(UserResponseDTO::fromEntity)
                 .map(ResponseEntity::ok)
@@ -64,13 +75,15 @@ public class UserController {
 
 
     @PutMapping("/{id}")
-    @Operation(summary = "Actualizar usuario", description = "Actualiza toda la información de un usuario existente.")
+    @Operation(summary = "Actualizar usuario", description = "Actualiza toda la información de un usuario existente, validando la propiedad del recurso.")
     @ApiResponses({
             @ApiResponse(responseCode = "200", description = "Usuario actualizado con éxito",
                     content = @Content(mediaType = "application/json", schema = @Schema(implementation = UserResponseDTO.class))),
-            @ApiResponse(responseCode = "404", description = "Usuario no encontrado")
+            @ApiResponse(responseCode = "404", description = "Usuario no encontrado"),
+            @ApiResponse(responseCode = "403", description = "Acceso denegado")
     })
-    public ResponseEntity<UserResponseDTO> update(@PathVariable @NonNull Long id, @Valid @RequestBody User user) {
+    public ResponseEntity<UserResponseDTO> update(@PathVariable @NonNull Long id, @Valid @RequestBody User user, Principal principal) {
+        authorizationHelper.verifyUserOwnership(principal, id);
         if (service.findById(id).isEmpty()) {
             return ResponseEntity.notFound().build();
         }
@@ -78,14 +91,16 @@ public class UserController {
     }
 
     @PutMapping("/{id}/profile")
-    @Operation(summary = "Actualizar perfil de usuario", description = "Actualiza campos específicos del perfil de un usuario (por ejemplo, teléfono, dirección, etc.).")
+    @Operation(summary = "Actualizar perfil de usuario", description = "Actualiza campos específicos del perfil de un usuario, validando la propiedad del recurso.")
     @ApiResponses({
             @ApiResponse(responseCode = "200", description = "Perfil actualizado con éxito",
                     content = @Content(mediaType = "application/json", schema = @Schema(implementation = UserResponseDTO.class))),
-            @ApiResponse(responseCode = "404", description = "Usuario no encontrado")
+            @ApiResponse(responseCode = "404", description = "Usuario no encontrado"),
+            @ApiResponse(responseCode = "403", description = "Acceso denegado")
     })
     public ResponseEntity<UserResponseDTO> updateProfile(@PathVariable @NonNull Long id,
-                                              @Valid @RequestBody ProfileUpdateRequest request) {
+                                               @Valid @RequestBody ProfileUpdateRequest request, Principal principal) {
+        authorizationHelper.verifyUserOwnership(principal, id);
         if (service.findById(id).isEmpty()) {
             return ResponseEntity.notFound().build();
         }
@@ -93,18 +108,21 @@ public class UserController {
     }
 
     @DeleteMapping("/{id}")
-    @Operation(summary = "Eliminar un usuario", description = "Elimina físicamente el usuario con el ID especificado.")
+    @Operation(summary = "Eliminar un usuario", description = "Elimina físicamente el usuario con el ID especificado, validando la propiedad del recurso.")
     @ApiResponses({
             @ApiResponse(responseCode = "204", description = "Usuario eliminado con éxito"),
-            @ApiResponse(responseCode = "404", description = "Usuario no encontrado")
+            @ApiResponse(responseCode = "404", description = "Usuario no encontrado"),
+            @ApiResponse(responseCode = "403", description = "Acceso denegado")
     })
-    public ResponseEntity<Void> delete(@PathVariable @NonNull Long id) {
+    public ResponseEntity<Void> delete(@PathVariable @NonNull Long id, Principal principal) {
+        authorizationHelper.verifyUserOwnership(principal, id);
         if (service.findById(id).isEmpty()) {
             return ResponseEntity.notFound().build();
         }
         service.delete(id);
         return ResponseEntity.noContent().build();
     }
+
 
     @PostMapping("/change-password")
     @Operation(summary = "Cambiar contraseña", description = "Permite a un usuario autenticado cambiar su contraseña actual por una nueva.")

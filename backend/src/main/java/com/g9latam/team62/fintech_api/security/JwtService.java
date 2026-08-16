@@ -17,11 +17,10 @@ import java.util.function.Function;
 @Service
 public class JwtService {
 
-    // 256-bit signing key (default)
     @Value("${jwt.secret:404E635266556A586E3272357538782F413F4428472B4B6250645367566B5970}")
     private String secretKey;
 
-    @Value("${jwt.expiration:86400000}") // 24 hours in milliseconds
+    @Value("${jwt.expiration:600000}")
     private long jwtExpiration;
 
     public String extractUsername(String token) {
