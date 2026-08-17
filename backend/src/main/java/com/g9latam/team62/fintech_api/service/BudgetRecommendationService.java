@@ -99,6 +99,37 @@ public class BudgetRecommendationService {
         return created;
     }
 
+    @SuppressWarnings("null")
+    public List<String> generateRecommendationsStateless(List<Transaction> transactions, BigDecimal monthlyIncome) {
+        if (transactions == null || transactions.isEmpty()) {
+            return List.of();
+        }
+
+        Map<Category, BigDecimal> expenseByCategory = sumByCategory(transactions, TransactionType.EXPENSE);
+        BigDecimal totalExpense = expenseByCategory.values().stream()
+                .reduce(BigDecimal.ZERO, BigDecimal::add);
+        if (totalExpense.signum() == 0) {
+            return List.of();
+        }
+
+        List<CategoryDeviation> deviations = computeDeviations(expenseByCategory, totalExpense);
+
+        List<String> recommendations = new ArrayList<>();
+        deviations.stream()
+                .sorted(Comparator.comparing((CategoryDeviation d) -> d.ratio()).reversed())
+                .limit(MAX_RECOMMENDATIONS_PER_RUN)
+                .forEach(d -> recommendations.add(buildCategoryText(d)));
+
+        BigDecimal totalIncome = monthlyIncome != null && monthlyIncome.signum() > 0 ? monthlyIncome :
+                sumByCategory(transactions, TransactionType.INCOME).values().stream()
+                .reduce(BigDecimal.ZERO, BigDecimal::add);
+
+        buildSavingsTextIfNeeded(totalIncome, totalExpense)
+                .ifPresent(recommendations::add);
+
+        return recommendations;
+    }
+
     private boolean isInCooldown(Long userId) {
         LocalDateTime cutoff = LocalDateTime.now().minusDays(COOLDOWN_DAYS);
         return recommendationRepository.findByUserId(userId).stream()

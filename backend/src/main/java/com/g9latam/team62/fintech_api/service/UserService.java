@@ -14,6 +14,7 @@ import org.springframework.transaction.annotation.Transactional;
 
 import java.time.LocalDateTime;
 import java.util.Collection;
+import java.util.List;
 import java.util.Optional;
 import org.springframework.lang.NonNull;
 
@@ -136,6 +137,10 @@ public class UserService {
         transactionRepository.deleteByUserId(id);
         recommendationRepository.deleteByUserId(id);
         repository.deleteById(id);
+    }
+
+    public List<FinancialProfileHistory> findProfileHistory(Long userId) {
+        return historyRepository.findByUserIdOrderByCreatedAtDesc(userId);
     }
 
     private void requireEmailAvailable(String email, Long ownId) {

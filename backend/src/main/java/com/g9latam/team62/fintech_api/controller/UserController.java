@@ -22,12 +22,15 @@ import io.swagger.v3.oas.annotations.Operation;
 import io.swagger.v3.oas.annotations.tags.Tag;
 import io.swagger.v3.oas.annotations.responses.ApiResponse;
 import io.swagger.v3.oas.annotations.responses.ApiResponses;
+import io.swagger.v3.oas.annotations.media.ArraySchema;
 import io.swagger.v3.oas.annotations.media.Content;
 import io.swagger.v3.oas.annotations.media.Schema;
 
 import com.g9latam.team62.fintech_api.security.AuthorizationHelper;
+import com.g9latam.team62.fintech_api.model.FinancialProfileHistory;
 import java.security.Principal;
 import java.util.Collection;
+import java.util.List;
 import java.util.Map;
 
 @RestController
@@ -121,6 +124,27 @@ public class UserController {
         }
         service.delete(id);
         return ResponseEntity.noContent().build();
+    }
+
+
+    @GetMapping("/{id}/profile-history")
+    @Operation(summary = "Obtener historial de perfiles financieros del usuario",
+               description = "Retorna la lista de perfiles financieros históricos del usuario, validando que pertenezca al usuario autenticado.")
+    @ApiResponses({
+            @ApiResponse(responseCode = "200", description = "Historial encontrado",
+                    content = @Content(mediaType = "application/json", 
+                    array = @ArraySchema(schema = @Schema(implementation = FinancialProfileHistory.class)))),
+            @ApiResponse(responseCode = "403", description = "Acceso denegado"),
+            @ApiResponse(responseCode = "404", description = "Usuario no encontrado")
+    })
+    public ResponseEntity<List<FinancialProfileHistory>> getProfileHistory(
+            @PathVariable @NonNull Long id, Principal principal) {
+        authorizationHelper.verifyUserOwnership(principal, id);
+        if (service.findById(id).isEmpty()) {
+            return ResponseEntity.notFound().build();
+        }
+        List<FinancialProfileHistory> history = service.findProfileHistory(id);
+        return ResponseEntity.ok(history);
     }
 
 

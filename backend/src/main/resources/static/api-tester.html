@@ -177,6 +177,19 @@
                                     </select>
                                 </div>
                                 <div class="form-group">
+                                    <label for="manualCurrency">Moneda</label>
+                                    <select id="manualCurrency">
+                                        <option value="CLP" selected>CLP (Peso Chileno)</option>
+                                        <option value="USD">USD (Dólar)</option>
+                                        <option value="EUR">EUR (Euro)</option>
+                                        <option value="MXN">MXN (Peso Mexicano)</option>
+                                        <option value="ARS">ARS (Peso Argentino)</option>
+                                        <option value="COP">COP (Peso Colombiano)</option>
+                                        <option value="PEN">PEN (Sol Peruano)</option>
+                                        <option value="BRL">BRL (Real Brasileño)</option>
+                                    </select>
+                                </div>
+                                <div class="form-group">
                                     <label for="manualMethod">Medio de Pago</label>
                                     <select id="manualMethod">
                                         <option value="DEBIT" selected>Débito</option>
@@ -268,6 +281,88 @@
                         <div id="recommendationsOutput" style="margin-top: 14px;"></div>
                     </div>
 
+                    <!-- PASO 5: ANALISIS FINANCIERO AL VUELO -->
+                    <div class="step-card" id="step5Card">
+                        <div class="step-header">
+                            <div class="step-title">
+                                <span class="step-number">5</span>
+                                Análisis Financiero Interactivo y Clasificación al Vuelo
+                            </div>
+                            <span class="method-badge method-post">POST /api/analisis-financiero</span>
+                        </div>
+                        <p style="font-size: 13px; color: var(--text-muted); margin-bottom: 12px;">
+                            Envía ingreso, nivel de endeudamiento, frecuencia de ahorro y transacciones al vuelo.
+                            El sistema clasificará las transacciones, actualizará tu perfil y retornará un informe financiero.
+                        </p>
+
+                        <div class="form-grid">
+                            <div class="form-group">
+                                <label for="analysisIncome">Ingreso Mensual ($)</label>
+                                <input type="number" id="analysisIncome" value="1500000">
+                            </div>
+                            <div class="form-group">
+                                <label for="analysisDebt">Nivel de Endeudamiento (%)</label>
+                                <input type="number" id="analysisDebt" value="12.5" step="0.1">
+                            </div>
+                            <div class="form-group">
+                                <label for="analysisSavingFreq">Frecuencia de Ahorro</label>
+                                <select id="analysisSavingFreq">
+                                    <option value="Media" selected>Media (Mensual)</option>
+                                    <option value="Alta">Alta (Semanal)</option>
+                                    <option value="Baja">Baja (Rara vez)</option>
+                                    <option value="Ninguna">Ninguna (Nunca)</option>
+                                </select>
+                            </div>
+                        </div>
+
+                        <div class="form-group" style="margin-top: 10px; margin-bottom: 12px;">
+                            <label for="analysisTxJSON">Transacciones a Analizar (Formato JSON):</label>
+                            <textarea id="analysisTxJSON" rows="5" style="font-family: 'Fira Code', monospace; font-size: 12px;">[
+  {
+    "descripcion": "COMPRA SUPERMERCADO JUMBO",
+    "valor": 78990.00
+  },
+  {
+    "descripcion": "PAGO UBER VIAJE",
+    "valor": 6500.00
+  },
+  {
+    "descripcion": "PAGO DEPARTAMENTO VIVIENDA",
+    "valor": 320000.00
+  }
+]</textarea>
+                        </div>
+
+                        <button class="btn btn-accent" onclick="executeWorkflowFinancialAnalysis()">
+                            📊 Ejecutar Análisis al Vuelo
+                        </button>
+                    </div>
+
+                    <!-- PASO 6: HISTORIAL DE PERFILES Y RECOMENDACIONES -->
+                    <div class="step-card" id="step6Card">
+                        <div class="step-header">
+                            <div class="step-title">
+                                <span class="step-number">6</span>
+                                Auditoría e Historial de Recomendaciones y Perfiles
+                            </div>
+                            <span class="method-badge method-get">GET /api/users/...</span>
+                        </div>
+                        <p style="font-size: 13px; color: var(--text-muted); margin-bottom: 12px;">
+                            Consulta el historial guardado en la base de datos de tus perfiles financieros y recomendaciones para verificar la auditoría del sistema.
+                        </p>
+
+                        <div class="btn-group">
+                            <button class="btn btn-outline" onclick="executeWorkflowFetchProfileHistory()">
+                                🕒 Ver Historial de Perfiles
+                            </button>
+                            <button class="btn btn-outline" onclick="executeWorkflowFetchRecommendationHistory()">
+                                📜 Ver Historial de Recomendaciones
+                            </button>
+                        </div>
+
+                        <div id="historyResultOutput" style="margin-top: 12px;"></div>
+                    </div>
+
                 </div>
 
                 <!-- LADO DERECHO: VISOR DE RESPUESTA EN VIVO -->
@@ -297,8 +392,9 @@
         <!-- ==================== TAB 2: PROBADOR INDIVIDUAL DE ENDPOINTS ==================== -->
         <div id="endpointsTab" class="tab-content">
             <div class="main-layout">
-                <div>
-                    <div class="card" style="margin-bottom: 20px;">
+                <!-- COLUMNA IZQUIERDA: SELECTOR DE ENDPOINTS (STICKY) -->
+                <div style="position: sticky; top: 90px; align-self: start;">
+                    <div class="card">
                         <div class="card-title" style="margin-bottom: 14px;">
                             📑 Seleccionar Endpoint a Probar
                         </div>
@@ -403,19 +499,65 @@
                                 <span class="endpoint-desc">Corregir categoría de transacción</span>
                             </div>
 
-                            <!-- RECOMMENDATIONS -->
+                            <!-- RECOMMENDATIONS & NEW APIS -->
                             <div class="endpoint-item" onclick="selectEndpoint('recGenerate')">
                                 <div>
                                     <span class="method-badge method-post">POST</span>
                                     <span class="endpoint-path">/api/recommendations/generate</span>
                                 </div>
-                                <span class="endpoint-desc">Generar recomendaciones presupuestarias</span>
+                                <span class="endpoint-desc">Generar recomendaciones prestigiosas</span>
+                            </div>
+
+                            <div class="endpoint-item" onclick="selectEndpoint('analisisFinanciero')">
+                                <div>
+                                    <span class="method-badge method-post">POST</span>
+                                    <span class="endpoint-path">/api/analisis-financiero</span>
+                                </div>
+                                <span class="endpoint-desc">Análisis Financiero al Vuelo</span>
+                            </div>
+
+                            <div class="endpoint-item" onclick="selectEndpoint('usersGetProfileHistory')">
+                                <div>
+                                    <span class="method-badge method-get">GET</span>
+                                    <span class="endpoint-path">/api/users/{id}/profile-history</span>
+                                </div>
+                                <span class="endpoint-desc">Historial de perfiles del usuario</span>
+                            </div>
+
+                            <div class="endpoint-item" onclick="selectEndpoint('recommendationsGetHistory')">
+                                <div>
+                                    <span class="method-badge method-get">GET</span>
+                                    <span class="endpoint-path">/api/recommendations/user/{userId}</span>
+                                </div>
+                                <span class="endpoint-desc">Historial de recomendaciones guardadas</span>
                             </div>
 
                         </div>
                     </div>
+                </div>
 
-                    <!-- ENDPOINT TESTER PANEL -->
+                <!-- COLUMNA DERECHA: VISOR DE RESPUESTA + FORMULARIO DE ENTRADA -->
+                <div class="response-container" style="display: flex; flex-direction: column; gap: 20px; align-self: start;">
+                    <!-- VISOR DE RESPUESTA HTTP -->
+                    <div class="card">
+                        <div class="card-header">
+                            <div class="card-title">
+                                📡 Visor de Respuesta HTTP
+                            </div>
+                            <button class="btn btn-outline btn-sm" onclick="copyResponseJSON()">
+                                📋 Copiar JSON
+                            </button>
+                        </div>
+
+                        <div class="response-meta">
+                            <div class="status-badge status-none" id="responseStatusEp">Status: ---</div>
+                            <div class="latency-badge" id="responseLatencyEp">Latencia: -- ms</div>
+                        </div>
+
+                        <pre class="json-viewer" id="jsonViewerEp">// La respuesta aparecerá formateada aquí...</pre>
+                    </div>
+
+                    <!-- FORMULARIO DE CONFIGURACIÓN DEL ENDPOINT (endpointFormCard) -->
                     <div class="card" id="endpointFormCard">
                         <div class="card-header">
                             <div class="card-title" id="epTitle">
@@ -442,27 +584,6 @@
                         <button class="btn btn-accent" onclick="executeSelectedEndpoint()">
                             ⚡ Enviar Petición
                         </button>
-                    </div>
-                </div>
-
-                <!-- LADO DERECHO: VISOR DE RESPUESTA TAB 2 -->
-                <div class="response-container">
-                    <div class="card">
-                        <div class="card-header">
-                            <div class="card-title">
-                                📡 Visor de Respuesta HTTP
-                            </div>
-                            <button class="btn btn-outline btn-sm" onclick="copyResponseJSON()">
-                                📋 Copiar JSON
-                            </button>
-                        </div>
-
-                        <div class="response-meta">
-                            <div class="status-badge status-none" id="responseStatusEp">Status: ---</div>
-                            <div class="latency-badge" id="responseLatencyEp">Latencia: -- ms</div>
-                        </div>
-
-                        <pre class="json-viewer" id="jsonViewerEp">// La respuesta aparecerá formateada aquí...</pre>
                     </div>
                 </div>
             </div>
@@ -503,6 +624,12 @@
                             </button>
                             <button class="btn btn-outline" onclick="testIdorDeleteTransaction()">
                                 🗑️ Intentar borrar transacción ajena (DELETE /api/transactions/{id})
+                            </button>
+                            <button class="btn btn-outline" onclick="testIdorFetchProfileHistory()">
+                                🔍 Intentar ver historial de perfil ajeno (GET /api/users/{id}/profile-history)
+                            </button>
+                            <button class="btn btn-outline" onclick="testIdorFetchRecommendationHistory()">
+                                📜 Intentar ver recomendaciones ajenas (GET /api/recommendations/user/{userId})
                             </button>
                         </div>
 
@@ -545,732 +672,7 @@
 
     </div>
 
-    <script>
-        // ==================== GLOBAL STATE & STORAGE ====================
-        let currentAuthToken = localStorage.getItem('fintech_jwt_token') || '';
-        let currentUserId = localStorage.getItem('fintech_user_id') || '';
-        let activeEndpointKey = 'authLogin';
-        let currentTransactionsList = [];
-
-        // Pre-fill date controls with defaults
-        document.addEventListener('DOMContentLoaded', () => {
-            const today = new Date();
-            const start30 = new Date(today);
-            start30.setDate(today.getDate() - 30);
-
-            document.getElementById('recEnd').value = today.toISOString().split('T')[0];
-            document.getElementById('recStart').value = start30.toISOString().split('T')[0];
-
-            if (currentUserId) {
-                document.getElementById('activeUserId').value = currentUserId;
-            }
-
-            updateAuthBadge();
-            selectEndpoint('authLogin');
-        });
-
-        function getBaseUrl() {
-            return document.getElementById('baseUrl').value.replace(/\/$/, '');
-        }
-
-        function updateAuthBadge() {
-            const badge = document.getElementById('authBadge');
-            const text = document.getElementById('authBadgeText');
-            if (currentAuthToken) {
-                badge.className = 'auth-status-badge authenticated';
-                text.textContent = 'JWT Activo (' + (currentUserId ? 'User ID: ' + currentUserId : 'Autenticado') + ')';
-            } else {
-                badge.className = 'auth-status-badge unauthenticated';
-                text.textContent = 'Sin Auth (Público)';
-            }
-        }
-
-        function setAuthData(token, userId) {
-            if (token) {
-                currentAuthToken = token;
-                localStorage.setItem('fintech_jwt_token', token);
-            }
-            if (userId) {
-                currentUserId = userId;
-                localStorage.setItem('fintech_user_id', userId);
-                document.getElementById('activeUserId').value = userId;
-            }
-            updateAuthBadge();
-        }
-
-        function clearToken() {
-            currentAuthToken = '';
-            currentUserId = '';
-            localStorage.removeItem('fintech_jwt_token');
-            localStorage.removeItem('fintech_user_id');
-            document.getElementById('activeUserId').value = '';
-            updateAuthBadge();
-            alert('Token e ID de usuario limpiados.');
-        }
-
-        function switchTab(tabId, btn) {
-            document.querySelectorAll('.tab-content').forEach(el => el.classList.remove('active'));
-            document.querySelectorAll('.tab-btn').forEach(el => el.classList.remove('active'));
-            document.getElementById(tabId).classList.add('active');
-            btn.classList.add('active');
-        }
-
-        function toggleIngestMode(mode) {
-            const stmtForm = document.getElementById('formStatementMode');
-            const manualForm = document.getElementById('formManualMode');
-            const btnStmt = document.getElementById('btnModeStatement');
-            const btnManual = document.getElementById('btnModeManual');
-
-            if (mode === 'statement') {
-                stmtForm.style.display = 'block';
-                manualForm.style.display = 'none';
-                btnStmt.classList.remove('btn-outline');
-                btnManual.classList.add('btn-outline');
-            } else {
-                stmtForm.style.display = 'none';
-                manualForm.style.display = 'block';
-                btnManual.classList.remove('btn-outline');
-                btnStmt.classList.add('btn-outline');
-            }
-        }
-
-        // ==================== HTTP FETCH UTILITIES ====================
-        async function makeApiCall(url, method = 'GET', body = null, isMultipart = false, customTargetViewer = null) {
-            const startTime = performance.now();
-            let statusBadge = document.getElementById('responseStatus');
-            let latencyBadge = document.getElementById('responseLatency');
-            let viewer = document.getElementById('jsonViewer');
-
-            if (customTargetViewer === 'ep') {
-                statusBadge = document.getElementById('responseStatusEp');
-                latencyBadge = document.getElementById('responseLatencyEp');
-                viewer = document.getElementById('jsonViewerEp');
-            } else if (customTargetViewer === 'sec') {
-                statusBadge = document.getElementById('responseStatusSec');
-                latencyBadge = document.getElementById('responseLatencySec');
-                viewer = document.getElementById('jsonViewerSec');
-            }
-
-            viewer.innerHTML = '<span class="loader"></span> Procesando petición...';
-
-            const headers = {};
-            if (currentAuthToken) {
-                headers['Authorization'] = 'Bearer ' + currentAuthToken;
-            }
-            if (body && !isMultipart) {
-                headers['Content-Type'] = 'application/json';
-            }
-
-            const fetchOptions = {
-                method: method,
-                headers: headers
-            };
-
-            if (body) {
-                fetchOptions.body = isMultipart ? body : (typeof body === 'string' ? body : JSON.stringify(body));
-            }
-
-            try {
-                const response = await fetch(url, fetchOptions);
-                const endTime = performance.now();
-                const latency = Math.round(endTime - startTime);
-
-                const statusText = `${response.status} ${response.statusText}`;
-                statusBadge.textContent = statusText;
-                latencyBadge.textContent = `Latencia: ${latency} ms`;
-
-                if (response.status >= 200 && response.status < 300) {
-                    statusBadge.className = 'status-badge status-2xx';
-                } else if (response.status >= 400 && response.status < 500) {
-                    statusBadge.className = 'status-badge status-4xx';
-                } else {
-                    statusBadge.className = 'status-badge status-5xx';
-                }
-
-                let responseData;
-                const contentType = response.headers.get('content-type');
-                if (contentType && contentType.includes('application/json')) {
-                    responseData = await response.json();
-                    viewer.innerHTML = syntaxHighlightJson(responseData);
-                } else {
-                    const rawText = await response.text();
-                    try {
-                        responseData = JSON.parse(rawText);
-                        viewer.innerHTML = syntaxHighlightJson(responseData);
-                    } catch (e) {
-                        viewer.textContent = rawText || '(Sin respuesta de texto)';
-                        responseData = rawText;
-                    }
-                }
-
-                return { ok: response.ok, status: response.status, data: responseData };
-
-            } catch (error) {
-                const endTime = performance.now();
-                statusBadge.className = 'status-badge status-5xx';
-                statusBadge.textContent = 'Error Red / CORS';
-                latencyBadge.textContent = `Latencia: ${Math.round(endTime - startTime)} ms`;
-                viewer.textContent = `[Error de Conexión]: ${error.message}\n\nAsegúrate de que el backend Spring Boot está corriendo en ${getBaseUrl()}`;
-                return { ok: false, error: error };
-            }
-        }
-
-        function syntaxHighlightJson(json) {
-            if (typeof json !== 'string') {
-                json = JSON.stringify(json, undefined, 2);
-            }
-            json = json.replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;');
-            return json.replace(/("(\\u[a-zA-Z0-9]{4}|\\[^u]|[^\\"])*"(\s*:)?|\b(true|false|null)\b|-?\d+(?:\.\d*)?(?:[eE][+\-]?\d+)?)/g, function (match) {
-                var cls = 'number';
-                if (/^"/.test(match)) {
-                    if (/:$/.test(match)) {
-                        cls = 'key';
-                    } else {
-                        cls = 'string';
-                    }
-                } else if (/true|false/.test(match)) {
-                    cls = 'boolean';
-                } else if (/null/.test(match)) {
-                    cls = 'null';
-                }
-                return '<span class="' + cls + '">' + match + '</span>';
-            });
-        }
-
-        function copyResponseJSON() {
-            const activeTab = document.querySelector('.tab-content.active').id;
-            let targetId = 'jsonViewer';
-            if (activeTab === 'endpointsTab') {
-                targetId = 'jsonViewerEp';
-            } else if (activeTab === 'securityTab') {
-                targetId = 'jsonViewerSec';
-            }
-            const viewer = document.getElementById(targetId);
-            navigator.clipboard.writeText(viewer.textContent).then(() => {
-                alert('JSON copiado al portapapeles.');
-            });
-        }
-
-        // ==================== WORKFLOW EXECUTION FUNCTIONS ====================
-        async function executeWorkflowLogin() {
-            const email = document.getElementById('step1Email').value;
-            const password = document.getElementById('step1Password').value;
-
-            const res = await makeApiCall(`${getBaseUrl()}/api/auth/login`, 'POST', { email, password });
-            if (res.ok && res.data.token) {
-                setAuthData(res.data.token, res.data.user ? res.data.user.id : '');
-                document.getElementById('step1Card').classList.remove('active');
-                document.getElementById('step2Card').classList.add('active');
-            }
-        }
-
-        async function executeWorkflowRegister() {
-            const email = document.getElementById('step1Email').value;
-            const password = document.getElementById('step1Password').value;
-            const name = document.getElementById('step1Name').value;
-            const monthlyIncome = parseFloat(document.getElementById('step1Income').value) || 0;
-
-            const res = await makeApiCall(`${getBaseUrl()}/api/auth/register`, 'POST', {
-                name,
-                email,
-                password,
-                monthlyIncome,
-                savingFrequency: 'MONTHLY'
-            });
-
-            if (res.ok && res.data.id) {
-                alert(`Usuario registrado con éxito (ID: ${res.data.id}). Procediendo al Login automatico...`);
-                await executeWorkflowLogin();
-            }
-        }
-
-        async function executeWorkflowUploadStatement() {
-            const userId = document.getElementById('activeUserId').value || currentUserId;
-            if (!userId) {
-                alert('Por favor especifica un User ID o inicia sesión primero.');
-                return;
-            }
-            const fileInput = document.getElementById('statementFile');
-            if (!fileInput.files || fileInput.files.length === 0) {
-                alert('Selecciona un archivo de cartola (Excel, CSV o PDF).');
-                return;
-            }
-
-            const formData = new FormData();
-            formData.append('file', fileInput.files[0]);
-            formData.append('userId', userId);
-            formData.append('defaultYear', document.getElementById('statementYear').value || '2026');
-            formData.append('country', document.getElementById('statementCountry').value || 'CL');
-
-            const res = await makeApiCall(`${getBaseUrl()}/api/transactions/upload-statement`, 'POST', formData, true);
-            if (res.ok) {
-                document.getElementById('step2Card').classList.remove('active');
-                document.getElementById('step3Card').classList.add('active');
-                await executeWorkflowFetchTransactions();
-            }
-        }
-
-        async function executeWorkflowCreateManualTx() {
-            const userId = document.getElementById('activeUserId').value || currentUserId;
-            if (!userId) {
-                alert('Especifica un User ID o inicia sesión primero.');
-                return;
-            }
-
-            const payload = {
-                userId: parseInt(userId),
-                amount: parseFloat(document.getElementById('manualAmount').value),
-                category: document.getElementById('manualCategory').value,
-                description: document.getElementById('manualDesc').value,
-                currency: { id: 1, name_currency: 'CLP' },
-                paymentMethod: document.getElementById('manualMethod').value,
-                bankName: document.getElementById('manualBankName').value,
-                operationNumber: document.getElementById('manualOpNumber').value || null
-            };
-
-            const res = await makeApiCall(`${getBaseUrl()}/api/transactions/manual`, 'POST', payload);
-            if (res.ok) {
-                document.getElementById('step2Card').classList.remove('active');
-                document.getElementById('step3Card').classList.add('active');
-                await executeWorkflowFetchTransactions();
-            }
-        }
-
-        async function executeWorkflowFetchTransactions() {
-            const userId = document.getElementById('activeUserId').value || currentUserId;
-            const url = userId ? `${getBaseUrl()}/api/transactions?userId=${userId}` : `${getBaseUrl()}/api/transactions`;
-
-            const res = await makeApiCall(url, 'GET');
-            if (res.ok && Array.isArray(res.data)) {
-                currentTransactionsList = res.data;
-                renderTransactionsTable(res.data);
-            }
-        }
-
-        function renderTransactionsTable(transactions) {
-            const container = document.getElementById('txListContainer');
-            if (transactions.length === 0) {
-                container.innerHTML = '<p style="font-size: 13px; color: var(--text-dim); text-align: center; padding: 12px;">No se encontraron transacciones para este usuario.</p>';
-                return;
-            }
-
-            let html = `
-                <table class="data-table">
-                    <thead>
-                        <tr>
-                            <th>ID</th>
-                            <th>Fecha</th>
-                            <th>Descripción</th>
-                            <th>Monto</th>
-                            <th>Categoría Actual</th>
-                            <th>Método Clasificación</th>
-                            <th>Acción (Feedback)</th>
-                        </tr>
-                    </thead>
-                    <tbody>
-            `;
-
-            transactions.forEach(tx => {
-                html += `
-                    <tr>
-                        <td>${tx.id}</td>
-                        <td>${tx.date || 'N/A'}</td>
-                        <td><strong>${tx.description || 'Sin descripción'}</strong></td>
-                        <td>$${(tx.amount || 0).toLocaleString()}</td>
-                        <td><span class="method-badge method-post">${tx.category || 'N/A'}</span></td>
-                        <td><small style="color: var(--text-muted);">${tx.categoryMethod || 'MANUAL'}</small></td>
-                        <td>
-                            <select id="corrCat_${tx.id}" style="padding: 4px 8px; font-size: 11px; width: 120px;">
-                                <option value="FOOD">FOOD</option>
-                                <option value="TRANSPORT">TRANSPORT</option>
-                                <option value="HOUSING">HOUSING</option>
-                                <option value="UTILITIES">UTILITIES</option>
-                                <option value="ENTERTAINMENT">ENTERTAINMENT</option>
-                                <option value="HEALTH">HEALTH</option>
-                                <option value="SHOPPING">SHOPPING</option>
-                            </select>
-                            <button class="btn btn-outline btn-sm" onclick="executeCategoryCorrection(${tx.id})" style="padding: 3px 8px; font-size: 11px;">Corregir</button>
-                        </td>
-                    </tr>
-                `;
-            });
-
-            html += `</tbody></table>`;
-            container.innerHTML = html;
-        }
-
-        async function executeCategoryCorrection(txId) {
-            const newCategory = document.getElementById(`corrCat_${txId}`).value;
-            const res = await makeApiCall(`${getBaseUrl()}/api/transactions/${txId}/category`, 'PUT', { category: newCategory });
-            if (res.ok) {
-                alert(`Categoría de transacción #${txId} actualizada a ${newCategory} (Feedback guardado).`);
-                await executeWorkflowFetchTransactions();
-            }
-        }
-
-        async function executeWorkflowGenerateRecommendations() {
-            const userId = document.getElementById('activeUserId').value || currentUserId;
-            if (!userId) {
-                alert('Especifique el User ID primero.');
-                return;
-            }
-
-            const start = document.getElementById('recStart').value;
-            const end = document.getElementById('recEnd').value;
-
-            let url = `${getBaseUrl()}/api/recommendations/generate?userId=${userId}`;
-            if (start) url += `&periodStart=${start}`;
-            if (end) url += `&periodEnd=${end}`;
-
-            const res = await makeApiCall(url, 'POST');
-            if (res.ok && Array.isArray(res.data)) {
-                renderRecommendations(res.data);
-            }
-        }
-
-        function renderRecommendations(list) {
-            const container = document.getElementById('recommendationsOutput');
-            if (list.length === 0) {
-                container.innerHTML = '<div class="recommendation-card OPTIMAL"><div class="rec-header">🎉 ¡Presupuesto Óptimo!</div><div class="rec-body">No se detectaron desviaciones significativas en tus gastos en comparación con las referencias INE Chile.</div></div>';
-                return;
-            }
-
-            let html = '';
-            list.forEach(rec => {
-                const statusClass = rec.status || 'WARNING';
-                const displayText = rec.text || rec.message || 'Sin mensaje especificado.';
-                const headerText = rec.category || 'Alerta de Gasto';
-
-                let spendHtml = '';
-                if (rec.currentSpend !== undefined && rec.recommendedLimit !== undefined) {
-                    spendHtml = `<span style="font-size: 12px; opacity: 0.8;">Gasto: $${rec.currentSpend.toLocaleString()} vs Límite: $${rec.recommendedLimit.toLocaleString()}</span>`;
-                } else if (rec.generatedAt) {
-                    spendHtml = `<span style="font-size: 12px; opacity: 0.8;">Generada: ${new Date(rec.generatedAt).toLocaleDateString()}</span>`;
-                }
-
-                html += `
-                    <div class="recommendation-card ${statusClass}">
-                        <div class="rec-header">
-                            <span>${headerText}</span>
-                            ${spendHtml}
-                        </div>
-                        <div class="rec-body">${displayText}</div>
-                    </div>
-                `;
-            });
-
-            container.innerHTML = html;
-        }
-
-        // ==================== ENDPOINT TESTER CONFIGURATION ====================
-        const endpointConfigs = {
-            authLogin: {
-                title: 'POST /api/auth/login',
-                method: 'POST',
-                path: '/api/auth/login',
-                hasBody: true,
-                hasFile: false,
-                preset: { email: 'juan.perez@example.com', password: 'Password123!' }
-            },
-            authRegister: {
-                title: 'POST /api/auth/register',
-                method: 'POST',
-                path: '/api/auth/register',
-                hasBody: true,
-                hasFile: false,
-                preset: {
-                    name: 'Juan Pérez',
-                    email: 'juan.perez@example.com',
-                    password: 'Password123!',
-                    monthlyIncome: 1200000.00,
-                    savingFrequency: 'MONTHLY'
-                }
-            },
-            usersGetAll: {
-                title: 'GET /api/users',
-                method: 'GET',
-                path: '/api/users',
-                hasBody: false,
-                hasFile: false
-            },
-            usersGetById: {
-                title: 'GET /api/users/{id}',
-                method: 'GET',
-                path: '/api/users/{id}',
-                params: [{ name: 'id', label: 'User ID', default: '1' }],
-                hasBody: false,
-                hasFile: false
-            },
-            usersUpdate: {
-                title: 'PUT /api/users/{id}',
-                method: 'PUT',
-                path: '/api/users/{id}',
-                params: [{ name: 'id', label: 'User ID', default: '1' }],
-                hasBody: true,
-                hasFile: false,
-                preset: {
-                    name: 'Juan Pérez Actualizado',
-                    email: 'juan.perez@example.com',
-                    monthlyIncome: 1500000.00,
-                    savingFrequency: 'BIWEEKLY'
-                }
-            },
-            usersUpdateProfile: {
-                title: 'PUT /api/users/{id}/profile',
-                method: 'PUT',
-                path: '/api/users/{id}/profile',
-                params: [{ name: 'id', label: 'User ID', default: '1' }],
-                hasBody: true,
-                hasFile: false,
-                preset: {
-                    financialProfile: 'BALANCED',
-                    profileAccuracy: 0.85,
-                    savingFrequency: 'MONTHLY'
-                }
-            },
-            usersChangePassword: {
-                title: 'POST /api/users/change-password',
-                method: 'POST',
-                path: '/api/users/change-password',
-                hasBody: true,
-                hasFile: false,
-                preset: { oldPassword: 'Password123!', newPassword: 'NewPassword456!' }
-            },
-            txGetAll: {
-                title: 'GET /api/transactions',
-                method: 'GET',
-                path: '/api/transactions',
-                queryParams: [{ name: 'userId', label: 'Filtro User ID (Opcional)', default: '1' }],
-                hasBody: false,
-                hasFile: false
-            },
-            txCreate: {
-                title: 'POST /api/transactions',
-                method: 'POST',
-                path: '/api/transactions',
-                hasBody: true,
-                hasFile: false,
-                preset: {
-                    description: 'COMPRA SUPERMERCADO LIDER',
-                    amount: 45990.00,
-                    category: 'FOOD',
-                    date: '2026-08-01',
-                    currency: { id: 1, name_currency: 'CLP' },
-                    userId: 1,
-                    paymentMethod: 'DEBIT',
-                    bankName: 'Banco de Chile'
-                }
-            },
-            txCreateManual: {
-                title: 'POST /api/transactions/manual',
-                method: 'POST',
-                path: '/api/transactions/manual',
-                hasBody: true,
-                hasFile: false,
-                preset: {
-                    userId: 1,
-                    amount: 25000.00,
-                    category: 'TRANSPORT',
-                    description: 'CARGA BIP METRO',
-                    currency: { id: 1, name_currency: 'CLP' },
-                    paymentMethod: 'CASH',
-                    bankName: 'Efectivo'
-                }
-            },
-            txUploadStatement: {
-                title: 'POST /api/transactions/upload-statement',
-                method: 'POST',
-                path: '/api/transactions/upload-statement',
-                queryParams: [
-                    { name: 'userId', label: 'User ID', default: '1' },
-                    { name: 'defaultYear', label: 'Año (Opcional)', default: '2026' },
-                    { name: 'country', label: 'País (Opcional)', default: 'CL' }
-                ],
-                hasBody: false,
-                hasFile: true
-            },
-            txUpdateCategory: {
-                title: 'PUT /api/transactions/{id}/category',
-                method: 'PUT',
-                path: '/api/transactions/{id}/category',
-                params: [{ name: 'id', label: 'Transaction ID', default: '1' }],
-                hasBody: true,
-                hasFile: false,
-                preset: { category: 'ENTERTAINMENT' }
-            },
-            recGenerate: {
-                title: 'POST /api/recommendations/generate',
-                method: 'POST',
-                path: '/api/recommendations/generate',
-                queryParams: [
-                    { name: 'userId', label: 'User ID', default: '1' },
-                    { name: 'periodStart', label: 'Fecha Inicio (YYYY-MM-DD)', default: '2026-07-01' },
-                    { name: 'periodEnd', label: 'Fecha Fin (YYYY-MM-DD)', default: '2026-08-09' }
-                ],
-                hasBody: false,
-                hasFile: false
-            }
-        };
-
-        function selectEndpoint(key) {
-            activeEndpointKey = key;
-            const config = endpointConfigs[key];
-
-            document.querySelectorAll('.endpoint-item').forEach(el => el.classList.remove('active'));
-            event?.currentTarget?.classList?.add('active');
-
-            document.getElementById('epPathText').textContent = config.path;
-            const badge = document.getElementById('epMethodBadge');
-            badge.textContent = config.method;
-            badge.className = `method-badge method-${config.method.toLowerCase()}`;
-
-            // Render path / query params
-            const paramsContainer = document.getElementById('epParamsContainer');
-            paramsContainer.innerHTML = '';
-
-            const allParams = [...(config.params || []), ...(config.queryParams || [])];
-            if (allParams.length > 0) {
-                let html = '<div class="form-grid">';
-                allParams.forEach(p => {
-                    html += `
-                        <div class="form-group">
-                            <label for="epParam_${p.name}">${p.label}</label>
-                            <input type="text" id="epParam_${p.name}" value="${p.default || ''}">
-                        </div>
-                    `;
-                });
-                html += '</div>';
-                paramsContainer.innerHTML = html;
-            }
-
-            // Body group
-            const bodyGroup = document.getElementById('epBodyGroup');
-            if (config.hasBody) {
-                bodyGroup.style.display = 'block';
-                document.getElementById('epRequestBody').value = JSON.stringify(config.preset || {}, null, 2);
-            } else {
-                bodyGroup.style.display = 'none';
-            }
-
-            // File group
-            const fileGroup = document.getElementById('epFileGroup');
-            fileGroup.style.display = config.hasFile ? 'block' : 'none';
-        }
-
-        function loadEndpointPreset() {
-            const config = endpointConfigs[activeEndpointKey];
-            if (config && config.preset) {
-                document.getElementById('epRequestBody').value = JSON.stringify(config.preset, null, 2);
-            }
-        }
-
-        async function executeSelectedEndpoint() {
-            const config = endpointConfigs[activeEndpointKey];
-            let url = getBaseUrl() + config.path;
-
-            // Substitute path parameters
-            if (config.params) {
-                config.params.forEach(p => {
-                    const val = document.getElementById(`epParam_${p.name}`).value;
-                    url = url.replace(`{${p.name}}`, encodeURIComponent(val));
-                });
-            }
-
-            // Append query parameters
-            if (config.queryParams) {
-                const queryParts = [];
-                config.queryParams.forEach(p => {
-                    const val = document.getElementById(`epParam_${p.name}`)?.value;
-                    if (val) queryParts.push(`${p.name}=${encodeURIComponent(val)}`);
-                });
-                if (queryParts.length > 0) {
-                    url += '?' + queryParts.join('&');
-                }
-            }
-
-            if (config.hasFile) {
-                const fileInput = document.getElementById('epFileInput');
-                if (!fileInput.files || fileInput.files.length === 0) {
-                    alert('Por favor selecciona un archivo primero.');
-                    return;
-                }
-                const formData = new FormData();
-                formData.append('file', fileInput.files[0]);
-                await makeApiCall(url, config.method, formData, true, 'ep');
-            } else if (config.hasBody) {
-                const bodyText = document.getElementById('epRequestBody').value;
-                await makeApiCall(url, config.method, bodyText, false, 'ep');
-            } else {
-                await makeApiCall(url, config.method, null, false, 'ep');
-            }
-        }
-
-        // ==================== SECURITY TESTER FUNCTIONS ====================
-        async function testIdorFetchProfile() {
-            const victimId = document.getElementById('secVictimUserId').value || '999';
-            await makeApiCall(`${getBaseUrl()}/api/users/${victimId}`, 'GET', null, false, 'sec');
-        }
-
-        async function testIdorUpdateProfile() {
-            const victimId = document.getElementById('secVictimUserId').value || '999';
-            const payload = {
-                financialProfile: 'BALANCED',
-                profileAccuracy: 0.99,
-                savingFrequency: 'MONTHLY'
-            };
-            await makeApiCall(`${getBaseUrl()}/api/users/${victimId}/profile`, 'PUT', payload, false, 'sec');
-        }
-
-        async function testIdorFetchTransaction() {
-            const victimTxId = document.getElementById('secVictimTxId').value || '999';
-            await makeApiCall(`${getBaseUrl()}/api/transactions/${victimTxId}`, 'GET', null, false, 'sec');
-        }
-
-        async function testIdorDeleteTransaction() {
-            const victimTxId = document.getElementById('secVictimTxId').value || '999';
-            await makeApiCall(`${getBaseUrl()}/api/transactions/${victimTxId}`, 'DELETE', null, false, 'sec');
-        }
-
-        async function checkCorsHeaders() {
-            const startTime = performance.now();
-            const statusBadge = document.getElementById('responseStatusSec');
-            const latencyBadge = document.getElementById('responseLatencySec');
-            const viewer = document.getElementById('jsonViewerSec');
-
-            viewer.innerHTML = '<span class="loader"></span> Simulando OPTIONS preflight...';
-
-            try {
-                const response = await fetch(`${getBaseUrl()}/api/auth/login`, {
-                    method: 'OPTIONS',
-                    headers: {
-                        'Access-Control-Request-Method': 'POST',
-                        'Access-Control-Request-Headers': 'content-type',
-                        'Origin': 'http://127.0.0.1:5500'
-                    }
-                });
-
-                const endTime = performance.now();
-                const latency = Math.round(endTime - startTime);
-
-                statusBadge.textContent = `${response.status} ${response.statusText}`;
-                latencyBadge.textContent = `Latencia: ${latency} ms`;
-                statusBadge.className = response.ok ? 'status-badge status-2xx' : 'status-badge status-4xx';
-
-                const headersObj = {};
-                response.headers.forEach((value, key) => {
-                    headersObj[key] = value;
-                });
-
-                viewer.innerHTML = `<strong>Cabeceras de Respuesta CORS en OPTIONS:</strong>\n\n` + syntaxHighlightJson(headersObj);
-            } catch (error) {
-                const endTime = performance.now();
-                statusBadge.className = 'status-badge status-5xx';
-                statusBadge.textContent = 'Error CORS / Red';
-                latencyBadge.textContent = `Latencia: ${Math.round(endTime - startTime)} ms`;
-                viewer.textContent = `[Error]: ${error.message}\n\nSi el navegador bloqueó la petición por política de mismo origen, el CORS está funcionando correctamente en el backend.`;
-            }
-        }
-    </script>
+    <script src="js/api-tester.js"></script>
 </body>
 
 </html>

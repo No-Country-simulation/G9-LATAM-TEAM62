@@ -499,6 +499,7 @@ textarea:focus {
 .response-container {
     position: sticky;
     top: 90px;
+    align-self: start;
 }
 
 .response-meta {

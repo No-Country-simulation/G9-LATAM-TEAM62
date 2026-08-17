@@ -10,6 +10,21 @@
       "name": "ml.inference.url",
       "type": "java.lang.String",
       "description": "URL of the ML inference service API."
+    },
+    {
+      "name": "jwt.secret",
+      "type": "java.lang.String",
+      "description": "Secret key for JWT signing and verification."
+    },
+    {
+      "name": "jwt.expiration",
+      "type": "java.lang.Long",
+      "description": "JWT expiration time in milliseconds."
+    },
+    {
+      "name": "cors.allowed-origins",
+      "type": "java.lang.String",
+      "description": "Allowed origins for CORS requests."
     }
   ]
 }

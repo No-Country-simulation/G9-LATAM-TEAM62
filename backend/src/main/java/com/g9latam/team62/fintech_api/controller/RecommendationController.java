@@ -12,6 +12,8 @@ import io.swagger.v3.oas.annotations.tags.Tag;
 import org.springframework.format.annotation.DateTimeFormat;
 import org.springframework.http.ResponseEntity;
 import org.springframework.lang.NonNull;
+import org.springframework.web.bind.annotation.GetMapping;
+import org.springframework.web.bind.annotation.PathVariable;
 import org.springframework.web.bind.annotation.PostMapping;
 import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RequestParam;
@@ -28,11 +30,14 @@ import java.util.List;
 public class RecommendationController {
 
     private final BudgetRecommendationService recommendationService;
+    private final com.g9latam.team62.fintech_api.service.RecommendationService recommendationHistoryService;
     private final AuthorizationHelper authorizationHelper;
 
     public RecommendationController(BudgetRecommendationService recommendationService,
+                                    com.g9latam.team62.fintech_api.service.RecommendationService recommendationHistoryService,
                                     AuthorizationHelper authorizationHelper) {
         this.recommendationService = recommendationService;
+        this.recommendationHistoryService = recommendationHistoryService;
         this.authorizationHelper = authorizationHelper;
     }
 
@@ -60,5 +65,20 @@ public class RecommendationController {
 
         List<Recommendation> created = recommendationService.generateRecommendations(userId, start, end);
         return ResponseEntity.ok(created);
+    }
+
+    @GetMapping("/user/{userId}")
+    @Operation(summary = "Obtener historial de recomendaciones",
+               description = "Retorna el historial de recomendaciones generadas y guardadas para el usuario, validando la propiedad del recurso.")
+    @ApiResponses({
+            @ApiResponse(responseCode = "200", description = "Historial de recomendaciones retornado con éxito",
+                    content = @Content(mediaType = "application/json", schema = @Schema(implementation = Recommendation.class))),
+            @ApiResponse(responseCode = "403", description = "Acceso denegado")
+    })
+    public ResponseEntity<List<Recommendation>> getRecommendationsHistory(
+            @PathVariable @NonNull Long userId, Principal principal) {
+        authorizationHelper.verifyUserOwnership(principal, userId);
+        List<Recommendation> history = recommendationHistoryService.findByUserId(userId);
+        return ResponseEntity.ok(history);
     }
 }
