@@ -14,13 +14,20 @@ El sistema recibe información relacionada con gastos, ingresos y hábitos finan
 
 ## Funcionalidades principales
 
-- **Clasificación automática jerárquica de 4 niveles** para transacciones financieras
-- **Aprendizaje colaborativo (Crowdsourcing / Retroalimentación)** mediante actualización en tiempo real de reglas por corrección de usuarios
-- **Administración dinámica de palabras clave en base de datos** para reglas de clasificación sin necesidad de redesplegar
-- **Análisis del perfil financiero** del usuario (`SAVER`, `BALANCED`, `SPENDER`, `AT_RISK`)
-- **Generación de recomendaciones** personalizadas
-- **Conversión y extracción de cartolas bancarias** desde PDF a Excel
-- **API REST documentada con Swagger/OpenAPI** y asegurada con JWT
+- **Clasificación automática jerárquica de 4 niveles** para transacciones financieras.
+- **Aprendizaje colaborativo (Crowdsourcing / Retroalimentación)** mediante actualización en tiempo real de reglas por corrección de usuarios.
+- **Administración dinámica de palabras clave en base de datos** para reglas de clasificación sin necesidad de redesplegar.
+- **Análisis del perfil financiero** del usuario (`SAVER`, `BALANCED`, `SPENDER`, `AT_RISK`).
+- **Generación de recomendaciones** personalizadas y reportes de sobregasto.
+- **Conversión y extracción de cartolas bancarias** (PDF, Excel, CSV) e ingesta automática a la base de datos a través de un analizador CLI en Python integrado en el backend.
+- **API REST documentada con Swagger/OpenAPI** y asegurada con JWT de expiración optimizada (10 minutos).
+
+### 🛡️ Seguridad del API & Defensa en Profundidad:
+- **Protección contra ataques de Fuerza Bruta:** Bloqueo temporal automático de cuentas por 15 minutos tras 5 intentos fallidos consecutivos de inicio de sesión.
+- **Validación de Propiedad de Recursos (Mitigación IDOR / BOLA):** Chequeo estricto a nivel de controlador para asegurar que los usuarios autenticados únicamente puedan consultar, crear, modificar o eliminar sus propios recursos (perfiles, transacciones y recomendaciones).
+- **Validación de Archivos por Magic Bytes:** Verificación del tipo MIME real analizando los bytes de cabecera (*Magic Bytes* / firmas de archivos) al subir cartolas en PDF, Excel o CSV, bloqueando payloads gigantes (2MB máx) y archivos ejecutables maliciosos renombrados.
+- **Cabeceras de Seguridad HTTP:** Configuración de cabeceras seguras (HSTS, X-Content-Type-Options para mitigar MIME sniffing, X-Frame-Options para prevenir Clickjacking y protección básica de XSS).
+- **CORS Preflight Bypass:** Interceptor global configurado para omitir peticiones de rate-limit en solicitudes `OPTIONS`, permitiendo un preflight limpio para el frontend.
 
 ---
 
@@ -91,7 +98,7 @@ Antes de ser evaluada por cualquiera de los niveles, la descripción de la trans
 
 | Área | Tecnologías |
 |---|---|
-| Back-End | Java 17, Spring Boot 3 (Spring Security, JWT, Apache PDFBox, Apache POI), Maven |
+| Back-End | Java 17, Spring Boot 3 (Spring Security, JWT), Maven |
 | Base de Datos | H2 (Pruebas locales) / Oracle Autonomous Database (Producción ATP over wallet) |
 | Documentación API | Springdoc OpenAPI (Swagger UI en `/swagger-ui.html`) |
 | Ciencia de Datos | Python, Scikit-Learn, Pandas, Jupyter |
@@ -111,9 +118,13 @@ finance-ai/
 ```
 
 ```bash
-curl.exe -X POST "http://localhost:8080/api/converter/pdf-to-excel" \
-  -F "file=@..\Cartola CuentaRUT 20260523_000002.pdf;type=application/pdf" \
-  -o salida.xlsx
+# Ejemplo de subida e ingesta directa de cartola mediante la API REST
+curl.exe -X POST "http://localhost:8080/api/transactions/upload-statement" \
+  -H "Authorization: Bearer <TOKEN_JWT>" \
+  -F "file=@..\Cartola CuentaRUT 20260523_000002.pdf" \
+  -F "userId=1" \
+  -F "defaultYear=2026" \
+  -F "country=CL"
 ```
 
 ---
