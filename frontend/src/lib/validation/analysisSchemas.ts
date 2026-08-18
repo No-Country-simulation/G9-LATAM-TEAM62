@@ -1,24 +1,26 @@
 import { z } from 'zod'
-import { debtLevels, savingsFrequencies } from '../../context/analysis-context'
-
-export const profileSchema = z.object({
-  income: z.coerce
-    .number({ message: 'Ingresá un ingreso válido' })
-    .positive('El ingreso debe ser mayor a 0'),
-  debt: z.string().refine((value) => (debtLevels as readonly string[]).includes(value), {
-    message: 'Elegí tu nivel de deuda actual',
-  }),
-  savings: z.string().refine((value) => (savingsFrequencies as readonly string[]).includes(value), {
-    message: 'Elegí una frecuencia de ahorro',
-  }),
-})
-
-export type ProfileFormInput = z.input<typeof profileSchema>
-export type ProfileFormValues = z.output<typeof profileSchema>
+import { expenseCategoryValues, paymentMethodValues } from '../api/transactions'
 
 export const transactionRowSchema = z.object({
-  desc: z.string().min(1, 'Agregá una descripción'),
+  desc: z
+    .string()
+    .min(10, 'La descripción debe tener al menos 10 caracteres')
+    .max(200, 'La descripción no puede superar los 200 caracteres'),
   amount: z.coerce.number({ message: 'Ingresá un monto' }).positive('El monto debe ser mayor a 0'),
+  category: z.enum(expenseCategoryValues, { message: 'Elegí una categoría' }),
+  paymentMethod: z.enum(paymentMethodValues, { message: 'Elegí un método de pago' }),
+  bankName: z.preprocess(
+    (v) => (v === '' || v === undefined ? undefined : v),
+    z.string().max(100, 'Máximo 100 caracteres').optional(),
+  ),
+  operationNumber: z.preprocess(
+    (v) => (v === '' || v === undefined ? undefined : v),
+    z
+      .string()
+      .max(50, 'Máximo 50 caracteres')
+      .regex(/^[a-zA-Z0-9-]*$/, 'Solo letras, números y guiones')
+      .optional(),
+  ),
 })
 
 export const transactionsSchema = z.object({

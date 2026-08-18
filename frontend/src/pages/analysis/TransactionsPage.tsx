@@ -1,6 +1,6 @@
 import { zodResolver } from '@hookform/resolvers/zod'
 import { useFieldArray, useForm } from 'react-hook-form'
-import { Navigate, useNavigate } from 'react-router-dom'
+import { Link, useNavigate } from 'react-router-dom'
 import { StepHeader } from '../../components/analysis/StepHeader'
 import { TransactionRow } from '../../components/analysis/TransactionRow'
 import { Button } from '../../components/ui/Button'
@@ -11,8 +11,19 @@ import {
   type TransactionsFormValues,
 } from '../../lib/validation/analysisSchemas'
 
+function emptyRow(): TransactionsFormInput['transactions'][number] {
+  return {
+    desc: '',
+    amount: undefined as unknown as number,
+    category: '' as never,
+    paymentMethod: '' as never,
+    bankName: '',
+    operationNumber: '',
+  }
+}
+
 function TransactionsPage() {
-  const { profile, transactions, setTransactions } = useAnalysis()
+  const { transactions, setTransactions } = useAnalysis()
   const navigate = useNavigate()
 
   const {
@@ -26,19 +37,22 @@ function TransactionsPage() {
     defaultValues: {
       transactions:
         transactions.length > 0
-          ? transactions.map((t) => ({ desc: t.desc, amount: t.amount }))
+          ? transactions.map((t) => ({
+              desc: t.desc,
+              amount: t.amount,
+              category: t.category,
+              paymentMethod: t.paymentMethod,
+              bankName: t.bankName ?? '',
+              operationNumber: t.operationNumber ?? '',
+            }))
           : [
-              { desc: '', amount: undefined as unknown as number },
-              { desc: '', amount: undefined as unknown as number },
+              emptyRow(),
+              emptyRow(),
             ],
     },
   })
 
   const { fields, append, remove } = useFieldArray({ control, name: 'transactions' })
-
-  if (profile.income == null) {
-    return <Navigate to="/analysis/new" replace />
-  }
 
   function onSubmit(values: TransactionsFormValues) {
     setTransactions(values.transactions)
@@ -47,12 +61,24 @@ function TransactionsPage() {
 
   return (
     <>
-      <StepHeader title="Nuevo análisis" onBack={() => navigate('/analysis/new')} step={2} totalSteps={2} />
+      <StepHeader
+        title="Nueva transacción"
+        onBack={() => navigate('/dashboard')}
+        action={
+          <Link
+            to="/transactions/upload"
+            className="flex items-center gap-1.5 rounded-full border border-border bg-surface px-3.5 py-2 text-[13px] font-semibold text-navy transition hover:border-navy hover:shadow-sm"
+          >
+            <UploadIcon />
+            Subir cartola
+          </Link>
+        }
+      />
 
       <form onSubmit={handleSubmit(onSubmit)} noValidate className="px-6 lg:px-0">
         <h2 className="mt-6 font-display text-2xl font-bold tracking-tight text-ink">Agregá tus transacciones</h2>
         <p className="mt-2 text-[15px] text-ink-soft">
-          Enumerá tus gastos recientes: descripción y monto. Agregá las que quieras.
+          Enumerá tus gastos recientes: descripción, monto, categoría y método de pago. Agregá las que quieras.
         </p>
 
         <div className="mt-6">
@@ -66,8 +92,18 @@ function TransactionsPage() {
               key={field.id}
               descProps={register(`transactions.${index}.desc`)}
               amountProps={register(`transactions.${index}.amount`)}
+              control={control}
+              index={index}
+              paymentMethodProps={register(`transactions.${index}.paymentMethod`)}
+              bankNameProps={register(`transactions.${index}.bankName`)}
+              operationNumberProps={register(`transactions.${index}.operationNumber`)}
               onRemove={() => remove(index)}
-              error={errors.transactions?.[index]?.desc?.message ?? errors.transactions?.[index]?.amount?.message}
+              error={
+                errors.transactions?.[index]?.desc?.message ??
+                errors.transactions?.[index]?.amount?.message ??
+                errors.transactions?.[index]?.category?.message ??
+                errors.transactions?.[index]?.paymentMethod?.message
+              }
             />
           ))}
           {errors.transactions?.message && (
@@ -75,7 +111,7 @@ function TransactionsPage() {
           )}
           <button
             type="button"
-            onClick={() => append({ desc: '', amount: undefined as unknown as number })}
+            onClick={() => append(emptyRow())}
             className="mt-1 flex w-full items-center justify-center gap-1.5 rounded-xl border-[1.5px] border-dashed border-border py-3.5 text-sm font-semibold text-navy transition hover:border-navy"
           >
             + Agregar transacción
@@ -89,6 +125,14 @@ function TransactionsPage() {
         </div>
       </form>
     </>
+  )
+}
+
+function UploadIcon() {
+  return (
+    <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+      <path d="M12 16V4M12 4 7 9M12 4l5 5M4 16v3a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2v-3" strokeLinecap="round" strokeLinejoin="round" />
+    </svg>
   )
 }
 

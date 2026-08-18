@@ -7,10 +7,10 @@ export function FinalCtaSection() {
       <div className="mx-auto max-w-[1160px] px-6 py-16 text-center md:py-24">
         <Reveal className="mx-auto flex max-w-[46ch] flex-col items-center">
           <h2 className="font-display text-3xl font-bold tracking-tight text-white md:text-4xl">
-            Tu puntaje te espera. Sacalo en minutos.
+            Tu perfil financiero te espera. Descubrilo en minutos.
           </h2>
           <p className="mt-4 text-base text-white/65 md:text-lg">
-            Solo tus números y una lectura clara de dónde estás parado.
+            Cargá tus movimientos y recibí una lectura clara de dónde estás parado.
           </p>
           <Link
             to="/register"

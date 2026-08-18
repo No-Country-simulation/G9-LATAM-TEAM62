@@ -1,11 +1,14 @@
+import type { ReactNode } from 'react'
+
 interface StepHeaderProps {
   title: string
   onBack: () => void
   step?: number
   totalSteps?: number
+  action?: ReactNode
 }
 
-export function StepHeader({ title, onBack, step, totalSteps }: StepHeaderProps) {
+export function StepHeader({ title, onBack, step, totalSteps, action }: StepHeaderProps) {
   const showProgress = step != null && totalSteps != null
   const pct = showProgress ? (step / totalSteps) * 100 : 0
 
@@ -20,7 +23,8 @@ export function StepHeader({ title, onBack, step, totalSteps }: StepHeaderProps)
         >
           <ArrowLeftIcon />
         </button>
-        <h1 className="font-display text-[17px] font-semibold">{title}</h1>
+        <h1 className="min-w-0 flex-1 truncate font-display text-[17px] font-semibold">{title}</h1>
+        {action && <div className="shrink-0">{action}</div>}
       </div>
       {showProgress && (
         <>

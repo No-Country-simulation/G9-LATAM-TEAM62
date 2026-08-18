@@ -1,9 +1,7 @@
 import { createContext } from 'react'
+import type { ApiUser } from '../lib/api/auth'
 
-export interface AuthUser {
-  name: string
-  email: string
-}
+export type AuthUser = ApiUser
 
 export interface LoginInput {
   email: string
@@ -21,6 +19,7 @@ export interface AuthContextValue {
   login: (data: LoginInput) => Promise<void>
   register: (data: RegisterInput) => Promise<void>
   logout: () => void
+  updateUser: (user: AuthUser) => void
 }
 
 export const AuthContext = createContext<AuthContextValue | null>(null)

@@ -1,6 +1,5 @@
+import { categoryColor } from '../../lib/api/transactions'
 import type { CategoryBreakdown } from '../../context/analysis-context'
-
-const PALETTE = ['#101B33', '#16B892', '#E2963B', '#6E7BF2', '#E1484D', '#8AA0B8']
 
 interface CategoryDonutProps {
   categories: CategoryBreakdown[]
@@ -9,11 +8,11 @@ interface CategoryDonutProps {
 export function CategoryDonut({ categories }: CategoryDonutProps) {
   const total = categories.reduce((sum, c) => sum + c.amount, 0)
   let acc = 0
-  const stops = categories.map((c, i) => {
+  const stops = categories.map((c) => {
     const start = total ? (acc / total) * 100 : 0
     acc += c.amount
     const end = total ? (acc / total) * 100 : 0
-    return `${PALETTE[i % PALETTE.length]} ${start}% ${end}%`
+    return `${categoryColor(c.category)} ${start}% ${end}%`
   })
 
   return (
@@ -25,11 +24,11 @@ export function CategoryDonut({ categories }: CategoryDonutProps) {
         }}
       />
       <div className="mt-4">
-        {categories.map((c, i) => (
-          <div key={c.name} className="flex items-center gap-2.5 py-2">
+        {categories.map((c) => (
+          <div key={c.category} className="flex items-center gap-2.5 py-2">
             <span
               className="h-2.5 w-2.5 shrink-0 rounded-[3px]"
-              style={{ backgroundColor: PALETTE[i % PALETTE.length] }}
+              style={{ backgroundColor: categoryColor(c.category) }}
             />
             <span className="flex-1 text-[13.5px] text-ink">{c.name}</span>
             <span className="font-mono text-[13px] font-semibold text-ink-soft">

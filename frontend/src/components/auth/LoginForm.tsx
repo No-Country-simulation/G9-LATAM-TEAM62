@@ -1,7 +1,9 @@
 import { zodResolver } from '@hookform/resolvers/zod'
+import { useState } from 'react'
 import { useForm } from 'react-hook-form'
 import { useNavigate } from 'react-router-dom'
 import { useAuth } from '../../context/useAuth'
+import { ApiError } from '../../lib/api/client'
 import { loginSchema, type LoginFormValues } from '../../lib/validation/authSchemas'
 import { Button } from '../ui/Button'
 import { PasswordField } from '../ui/PasswordField'
@@ -10,6 +12,7 @@ import { TextField } from '../ui/TextField'
 export function LoginForm() {
   const { login } = useAuth()
   const navigate = useNavigate()
+  const [formError, setFormError] = useState<string | null>(null)
 
   const {
     register,
@@ -18,12 +21,20 @@ export function LoginForm() {
   } = useForm<LoginFormValues>({ resolver: zodResolver(loginSchema) })
 
   async function onSubmit(values: LoginFormValues) {
-    await login(values)
-    navigate('/dashboard')
+    setFormError(null)
+    try {
+      await login(values)
+      navigate('/dashboard')
+    } catch (err) {
+      setFormError(err instanceof ApiError ? err.message : 'No se pudo iniciar sesión. Intentá nuevamente.')
+    }
   }
 
   return (
     <form onSubmit={handleSubmit(onSubmit)} noValidate>
+      {formError && (
+        <p className="mb-4 rounded-lg bg-risk/10 px-3 py-2 text-sm font-medium text-risk">{formError}</p>
+      )}
       <TextField
         label="Correo electrónico"
         type="email"

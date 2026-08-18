@@ -1,27 +1,30 @@
+import { Badge } from '../ui/Badge'
+import { NavyPanel } from '../ui/NavyPanel'
 import { Reveal } from '../ui/Reveal'
 import { ScoreGauge } from '../ui/ScoreGauge'
 
 const steps = [
   {
     number: '01',
-    title: 'Contás lo básico',
-    description: 'Tu ingreso mensual, tu nivel de deuda y con qué frecuencia ahorrás. Menos de un minuto.',
+    title: 'Cargás tus transacciones',
+    description: 'A mano, una por una, o subiendo tu cartola bancaria en Excel, CSV o PDF — vos elegís.',
     score: 0,
-    scoreLabel: 'Arrancando',
+    scoreLabel: 'Cargando',
   },
   {
     number: '02',
-    title: 'La IA revisa tus movimientos',
-    description: 'Categoriza cada gasto y entiende qué es esencial y qué es discrecional en tu día a día.',
+    title: 'La IA clasifica cada gasto',
+    description: 'Detecta la categoría y el método de pago de cada movimiento, sin que tengas que hacerlo vos.',
     score: 45,
-    scoreLabel: 'Analizando',
+    scoreLabel: 'Clasificando',
   },
   {
     number: '03',
-    title: 'Recibís tu puntaje y qué hacer',
-    description: 'Un número claro de 0 a 100 y tres recomendaciones concretas, en lenguaje simple.',
+    title: 'Recibís tu perfil y recomendaciones',
+    description:
+      'Tu perfil financiero, el desglose de tus gastos por categoría y recomendaciones concretas para mejorar.',
     score: 82,
-    scoreLabel: 'Puntaje de salud',
+    scoreLabel: 'Confianza del perfil',
   },
 ]
 
@@ -33,7 +36,7 @@ export function HowItWorksSection() {
           Cómo funciona
         </span>
         <h2 className="font-display text-3xl font-bold tracking-tight md:text-4xl">
-          De tus números a un plan, en tres pasos.
+          De tus movimientos a tu perfil, en tres pasos.
         </h2>
       </Reveal>
 
@@ -51,9 +54,14 @@ export function HowItWorksSection() {
                 <p className="mt-3 max-w-[46ch] text-[15px] leading-relaxed text-ink-soft">{step.description}</p>
               </div>
               <div className="flex flex-1 items-center justify-center">
-                <div className="rounded-[26px] bg-navy p-8 shadow-[0_20px_44px_-14px_rgba(16,27,51,.22)]">
+                <NavyPanel className="text-center">
                   <ScoreGauge score={step.score} size={116} stroke={9} label={step.scoreLabel} />
-                </div>
+                  {index === 2 && (
+                    <div className="mt-4">
+                      <Badge profile="BALANCED" />
+                    </div>
+                  )}
+                </NavyPanel>
               </div>
             </div>
           </Reveal>
