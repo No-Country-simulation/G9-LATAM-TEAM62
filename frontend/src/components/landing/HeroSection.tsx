@@ -1,6 +1,9 @@
 import { useEffect, useState } from 'react'
 import { Link } from 'react-router-dom'
 import { useInView } from '../../hooks/useInView'
+import { Badge } from '../ui/Badge'
+import { Logo } from '../ui/Logo'
+import { NavyPanel } from '../ui/NavyPanel'
 import { ScoreGauge } from '../ui/ScoreGauge'
 
 const FINAL_SCORE = 74
@@ -36,7 +39,7 @@ export function HeroSection() {
     <div className="mx-auto flex max-w-[1160px] flex-col px-6 pt-8 md:pt-14">
       <nav className="flex items-center justify-between pb-8">
         <div className="flex items-center gap-2 font-semibold">
-          <span className="h-2.5 w-2.5 rounded-full bg-accent" />
+          <Logo />
           Finance AI
         </div>
       </nav>
@@ -47,13 +50,14 @@ export function HeroSection() {
             Salud financiera con IA
           </span>
           <h1 className="text-4xl leading-tight font-bold tracking-tight md:text-6xl">
-            El estado real de tus finanzas,{' '}
+            Tus gastos, traducidos a{' '}
             <em className="not-italic bg-[linear-gradient(180deg,transparent_60%,#E1F7F0_60%)]">
-              en un solo número.
+              un perfil financiero claro.
             </em>
           </h1>
           <p className="mt-5 max-w-[44ch] text-base text-ink-soft md:text-lg">
-            Contanos tus ingresos y tus gastos. Finance AI analiza tu situación y te dice qué ajustar para mejorar.
+            Cargá tus movimientos a mano o subí tu cartola bancaria. Finance AI los clasifica automáticamente y te
+            dice qué tipo de gasto sos.
           </p>
           <div className="mt-8 flex flex-col gap-3 sm:flex-row">
             <Link
@@ -72,12 +76,15 @@ export function HeroSection() {
         </div>
 
         <div className="flex items-center justify-center">
-          <div className="w-full max-w-[300px] rounded-[26px] bg-navy p-9 text-center shadow-[0_20px_44px_-14px_rgba(16,27,51,.22)]">
-            <ScoreGauge score={score} size={140} stroke={11} />
+          <NavyPanel className="w-full max-w-[300px] text-center">
+            <ScoreGauge score={score} size={140} stroke={11} label="Confianza del perfil" glow />
+            <div className="mt-4">
+              <Badge profile="BALANCED" />
+            </div>
             <p className="mt-4 text-xs leading-relaxed text-white/55">
-              Puntaje calculado a partir de tus ingresos, deudas y hábitos de ahorro.
+              Calculado a partir de tus transacciones reales, no de un cuestionario.
             </p>
-          </div>
+          </NavyPanel>
         </div>
       </div>
     </div>

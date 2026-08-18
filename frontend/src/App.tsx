@@ -2,14 +2,17 @@ import { RouterProvider } from 'react-router-dom'
 import { router } from './app/router'
 import { AnalysisProvider } from './context/AnalysisContext'
 import { AuthProvider } from './context/AuthContext'
+import { ToastProvider } from './context/ToastProvider'
 
 function App() {
   return (
-    <AuthProvider>
-      <AnalysisProvider>
-        <RouterProvider router={router} />
-      </AnalysisProvider>
-    </AuthProvider>
+    <ToastProvider>
+      <AuthProvider>
+        <AnalysisProvider>
+          <RouterProvider router={router} />
+        </AnalysisProvider>
+      </AuthProvider>
+    </ToastProvider>
   )
 }
 
