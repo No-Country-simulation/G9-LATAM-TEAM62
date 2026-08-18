@@ -2,14 +2,17 @@ import { Navigate, useNavigate } from 'react-router-dom'
 import { StepHeader } from '../../components/analysis/StepHeader'
 import { Button } from '../../components/ui/Button'
 import { useAnalysis } from '../../context/useAnalysis'
+import { categoryLabel, paymentMethodLabel } from '../../lib/api/transactions'
 
 function ReviewPage() {
-  const { profile, transactions } = useAnalysis()
+  const { transactions } = useAnalysis()
   const navigate = useNavigate()
 
-  if (profile.income == null || profile.debt == null || profile.savings == null || transactions.length === 0) {
-    return <Navigate to="/analysis/new" replace />
+  if (transactions.length === 0) {
+    return <Navigate to="/analysis/transactions" replace />
   }
+
+  const total = transactions.reduce((sum, t) => sum + t.amount, 0)
 
   return (
     <>
@@ -21,25 +24,20 @@ function ReviewPage() {
         </p>
 
         <div className="mt-6">
-          <h3 className="mb-2.5 text-xs font-bold tracking-wide text-ink-faint uppercase">Perfil financiero</h3>
-          <div className="rounded-2xl border border-border p-5">
-            <SummaryRow label="Ingreso mensual" value={`$${profile.income.toLocaleString('es-AR')}`} />
-            <SummaryRow label="Nivel de deuda" value={profile.debt} border />
-            <SummaryRow label="Frecuencia de ahorro" value={profile.savings} border />
-          </div>
-        </div>
-
-        <div className="mt-6">
           <h3 className="mb-2.5 text-xs font-bold tracking-wide text-ink-faint uppercase">Transacciones</h3>
           <div className="rounded-2xl border border-border p-5">
             {transactions.map((t, i) => (
               <SummaryRow
                 key={`${t.desc}-${i}`}
-                label={t.desc}
+                label={`${t.desc} · ${categoryLabel(t.category)} · ${paymentMethodLabel(t.paymentMethod)}`}
                 value={`$${t.amount.toLocaleString('es-AR')}`}
                 border={i > 0}
               />
             ))}
+            <div className="mt-1 flex items-center justify-between border-t-2 border-ink/10 pt-3">
+              <span className="text-[13px] font-bold text-ink">Total</span>
+              <span className="font-mono text-base font-bold text-ink">${total.toLocaleString('es-AR')}</span>
+            </div>
           </div>
         </div>
 
