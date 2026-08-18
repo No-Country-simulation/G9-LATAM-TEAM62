@@ -5,7 +5,11 @@ import java.time.Duration;
 import io.github.bucket4j.Bandwidth;
 
 public enum RateLimitPolicy {
-    LOGIN(5, Duration.ofMinutes(10)),
+    // Por encima de LoginAttemptService.MAX_ATTEMPTS (5) a propósito. Con ambos límites en 5,
+    // el cubo por IP se agotaba en el mismo intento en que debía activarse el bloqueo por
+    // cuenta, así que el bloqueo de 15 minutos nunca llegaba a aplicarse. Este margen deja
+    // que actúe primero la defensa específica y la de IP siga cubriendo el resto.
+    LOGIN(10, Duration.ofMinutes(10)),
     REGISTER(2, Duration.ofHours(1)),
     RECOVER_PASSWORD(3, Duration.ofHours(1)),
     TRANSACTION_HISTORY(100, Duration.ofHours(1)),

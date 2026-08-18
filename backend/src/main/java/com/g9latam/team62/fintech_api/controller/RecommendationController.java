@@ -1,5 +1,6 @@
 package com.g9latam.team62.fintech_api.controller;
 
+import com.g9latam.team62.fintech_api.dto.RecommendationResponse;
 import com.g9latam.team62.fintech_api.model.Recommendation;
 import com.g9latam.team62.fintech_api.service.BudgetRecommendationService;
 import io.swagger.v3.oas.annotations.Operation;
@@ -46,11 +47,11 @@ public class RecommendationController {
                description = "Evalúa la distribución de gastos del usuario contra referencias INE (Chile) en un período dado y genera alertas de sobregasto, validando que el userId pertenezca al usuario autenticado.")
     @ApiResponses({
             @ApiResponse(responseCode = "200", description = "Recomendaciones generadas exitosamente",
-                    content = @Content(mediaType = "application/json", schema = @Schema(implementation = Recommendation.class))),
+                    content = @Content(mediaType = "application/json", schema = @Schema(implementation = RecommendationResponse.class))),
             @ApiResponse(responseCode = "400", description = "Parámetros inválidos o usuario no encontrado"),
             @ApiResponse(responseCode = "403", description = "Acceso denegado")
     })
-    public ResponseEntity<List<Recommendation>> generateRecommendations(
+    public ResponseEntity<List<RecommendationResponse>> generateRecommendations(
             @Parameter(description = "ID del usuario") @NonNull @RequestParam Long userId,
             @Parameter(description = "Fecha de inicio del período (YYYY-MM-DD)")
             @RequestParam(required = false) @DateTimeFormat(iso = DateTimeFormat.ISO.DATE) LocalDate periodStart,
@@ -64,7 +65,7 @@ public class RecommendationController {
         LocalDate start = periodStart != null ? periodStart : end.minusDays(30);
 
         List<Recommendation> created = recommendationService.generateRecommendations(userId, start, end);
-        return ResponseEntity.ok(created);
+        return ResponseEntity.ok(RecommendationResponse.fromEntities(created));
     }
 
     @GetMapping("/user/{userId}")
@@ -72,13 +73,13 @@ public class RecommendationController {
                description = "Retorna el historial de recomendaciones generadas y guardadas para el usuario, validando la propiedad del recurso.")
     @ApiResponses({
             @ApiResponse(responseCode = "200", description = "Historial de recomendaciones retornado con éxito",
-                    content = @Content(mediaType = "application/json", schema = @Schema(implementation = Recommendation.class))),
+                    content = @Content(mediaType = "application/json", schema = @Schema(implementation = RecommendationResponse.class))),
             @ApiResponse(responseCode = "403", description = "Acceso denegado")
     })
-    public ResponseEntity<List<Recommendation>> getRecommendationsHistory(
+    public ResponseEntity<List<RecommendationResponse>> getRecommendationsHistory(
             @PathVariable @NonNull Long userId, Principal principal) {
         authorizationHelper.verifyUserOwnership(principal, userId);
         List<Recommendation> history = recommendationHistoryService.findByUserId(userId);
-        return ResponseEntity.ok(history);
+        return ResponseEntity.ok(RecommendationResponse.fromEntities(history));
     }
 }

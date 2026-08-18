@@ -1,7 +1,6 @@
 package com.g9latam.team62.fintech_api.service;
 
 import com.fasterxml.jackson.databind.ObjectMapper;
-import com.g9latam.team62.fintech_api.dto.MlPrediction;
 import com.g9latam.team62.fintech_api.model.Category;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;

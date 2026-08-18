@@ -1,9 +1,10 @@
 package com.g9latam.team62.fintech_api.controller;
 
 import com.g9latam.team62.fintech_api.dto.ChangePasswordRequest;
+import com.g9latam.team62.fintech_api.dto.ProfileHistoryResponse;
 import com.g9latam.team62.fintech_api.dto.ProfileUpdateRequest;
 import com.g9latam.team62.fintech_api.dto.UserResponseDTO;
-import com.g9latam.team62.fintech_api.model.User;
+import com.g9latam.team62.fintech_api.dto.UserUpdateRequest;
 import com.g9latam.team62.fintech_api.service.UserService;
 import jakarta.validation.Valid;
 import org.springframework.http.HttpStatus;
@@ -27,7 +28,6 @@ import io.swagger.v3.oas.annotations.media.Content;
 import io.swagger.v3.oas.annotations.media.Schema;
 
 import com.g9latam.team62.fintech_api.security.AuthorizationHelper;
-import com.g9latam.team62.fintech_api.model.FinancialProfileHistory;
 import java.security.Principal;
 import java.util.Collection;
 import java.util.List;
@@ -85,12 +85,13 @@ public class UserController {
             @ApiResponse(responseCode = "404", description = "Usuario no encontrado"),
             @ApiResponse(responseCode = "403", description = "Acceso denegado")
     })
-    public ResponseEntity<UserResponseDTO> update(@PathVariable @NonNull Long id, @Valid @RequestBody User user, Principal principal) {
+    public ResponseEntity<UserResponseDTO> update(@PathVariable @NonNull Long id,
+                                                 @Valid @RequestBody UserUpdateRequest request, Principal principal) {
         authorizationHelper.verifyUserOwnership(principal, id);
         if (service.findById(id).isEmpty()) {
             return ResponseEntity.notFound().build();
         }
-        return ResponseEntity.ok(UserResponseDTO.fromEntity(service.update(id, user)));
+        return ResponseEntity.ok(UserResponseDTO.fromEntity(service.update(id, request)));
     }
 
     @PutMapping("/{id}/profile")
@@ -133,18 +134,17 @@ public class UserController {
     @ApiResponses({
             @ApiResponse(responseCode = "200", description = "Historial encontrado",
                     content = @Content(mediaType = "application/json", 
-                    array = @ArraySchema(schema = @Schema(implementation = FinancialProfileHistory.class)))),
+                    array = @ArraySchema(schema = @Schema(implementation = ProfileHistoryResponse.class)))),
             @ApiResponse(responseCode = "403", description = "Acceso denegado"),
             @ApiResponse(responseCode = "404", description = "Usuario no encontrado")
     })
-    public ResponseEntity<List<FinancialProfileHistory>> getProfileHistory(
+    public ResponseEntity<List<ProfileHistoryResponse>> getProfileHistory(
             @PathVariable @NonNull Long id, Principal principal) {
         authorizationHelper.verifyUserOwnership(principal, id);
         if (service.findById(id).isEmpty()) {
             return ResponseEntity.notFound().build();
         }
-        List<FinancialProfileHistory> history = service.findProfileHistory(id);
-        return ResponseEntity.ok(history);
+        return ResponseEntity.ok(ProfileHistoryResponse.fromEntities(service.findProfileHistory(id)));
     }
 
 

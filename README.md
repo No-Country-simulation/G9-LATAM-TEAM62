@@ -23,6 +23,7 @@ El sistema recibe información relacionada con gastos, ingresos y hábitos finan
 - **API REST documentada con Swagger/OpenAPI** y asegurada con JWT de expiración optimizada (10 minutos).
 
 ### 🛡️ Seguridad del API & Defensa en Profundidad:
+- **Clave de firma JWT obligatoria por entorno:** La aplicación no arranca sin `JWT_SECRET`. No existe valor por defecto en el código, de modo que ningún despliegue puede quedar firmando tokens con una clave versionada en el repositorio.
 - **Protección contra ataques de Fuerza Bruta:** Bloqueo temporal automático de cuentas por 15 minutos tras 5 intentos fallidos consecutivos de inicio de sesión.
 - **Validación de Propiedad de Recursos (Mitigación IDOR / BOLA):** Chequeo estricto a nivel de controlador para asegurar que los usuarios autenticados únicamente puedan consultar, crear, modificar o eliminar sus propios recursos (perfiles, transacciones y recomendaciones).
 - **Validación de Archivos por Magic Bytes:** Verificación del tipo MIME real analizando los bytes de cabecera (*Magic Bytes* / firmas de archivos) al subir cartolas en PDF, Excel o CSV, bloqueando payloads gigantes (2MB máx) y archivos ejecutables maliciosos renombrados.
@@ -147,8 +148,9 @@ en cada push a `main` y luego, en un runner *self-hosted*, levanta la nueva vers
 
 ### Configuración en el servidor
 
-Las credenciales —contraseña de la base de datos y wallet de Oracle— **no viven en el repositorio**:
-se dejan una sola vez en el servidor, en un directorio propio **fuera del workspace del runner**:
+Las credenciales —clave de firma JWT, contraseña de la base de datos y wallet de Oracle— **no viven
+en el repositorio**: se dejan una sola vez en el servidor, en un directorio propio **fuera del
+workspace del runner**:
 
 ```
 /opt/financeai/
@@ -172,6 +174,10 @@ sudo chown -R <usuario-del-runner> /opt/financeai
 
 # copiar .env.example del repositorio a /opt/financeai/.env y completarlo,
 # y descomprimir ahí el wallet descargado desde OCI
+
+# generar la clave de firma de tokens de este entorno y dejarla en el .env
+openssl rand -hex 32          # -> JWT_SECRET=...
+
 chmod 750 /opt/financeai
 chmod 600 /opt/financeai/.env             # lo lee el CLI de Docker, como el usuario del runner
 chmod 755 /opt/financeai/secrets/wallet   # lo lee el proceso dentro del contenedor
@@ -217,6 +223,18 @@ cd <workspace-antiguo> && docker compose down
 
 Para levantar la misma pila en la máquina de desarrollo, el `.env` y `secrets/wallet/` van en la raíz
 del repositorio (ambos están en `.gitignore`) y basta con `docker compose up -d`.
+
+Para correr el backend sin Docker hay que exportar la clave de firma en la sesión, porque la
+aplicación no arranca sin ella:
+
+```bash
+export JWT_SECRET=$(openssl rand -hex 32)
+cd backend && ./mvnw spring-boot:run
+```
+
+Sirve cualquier valor de 32 bytes o más; al ser distinto en cada arranque, los tokens emitidos antes
+dejan de ser válidos. La suite de tests trae su propia clave (ver `maven-surefire-plugin` en
+`backend/pom.xml`), así que `./mvnw test` no necesita configuración extra.
 
 ---
 

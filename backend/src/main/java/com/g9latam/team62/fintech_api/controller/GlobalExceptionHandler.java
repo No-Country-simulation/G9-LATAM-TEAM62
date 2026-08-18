@@ -1,5 +1,7 @@
 package com.g9latam.team62.fintech_api.controller;
 
+import com.g9latam.team62.fintech_api.exception.ConflictException;
+import com.g9latam.team62.fintech_api.exception.NotFoundException;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.http.HttpStatus;
@@ -19,6 +21,18 @@ import java.util.Map;
 public class GlobalExceptionHandler {
 
     private static final Logger log = LoggerFactory.getLogger(GlobalExceptionHandler.class);
+
+    // 0. El recurso pedido no existe (404 Not Found)
+    @ExceptionHandler(NotFoundException.class)
+    public ResponseEntity<Map<String, String>> handleNotFound(NotFoundException exception) {
+        return ResponseEntity.status(HttpStatus.NOT_FOUND).body(Map.of("error", exception.getMessage()));
+    }
+
+    // 0.5. La petición choca con el estado actual del sistema (409 Conflict)
+    @ExceptionHandler(ConflictException.class)
+    public ResponseEntity<Map<String, String>> handleDomainConflict(ConflictException exception) {
+        return ResponseEntity.status(HttpStatus.CONFLICT).body(Map.of("error", exception.getMessage()));
+    }
 
     // 1. Maneja argumentos inválidos en la lógica de negocio (400 Bad Request)
     @ExceptionHandler(IllegalArgumentException.class)

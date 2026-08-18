@@ -13,7 +13,7 @@ public record UserResponseDTO(
         BigDecimal monthlyIncome,
         SavingFrequency savingFrequency,
         FinancialProfile financialProfile,
-        BigDecimal profileAccuracy
+        Double profileAccuracy
 ) {
     public static UserResponseDTO fromEntity(User user) {
         if (user == null) {

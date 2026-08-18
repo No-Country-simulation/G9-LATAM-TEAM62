@@ -18,8 +18,23 @@ public record ProfileUpdateRequest(
         @NotNull(message = "El nivel de precisión del perfil es obligatorio") 
         @DecimalMin(value = "0.0", message = "La precisión no puede ser menor a 0.0") 
         @DecimalMax(value = "1.0", message = "La precisión no puede superar 1.0") 
-        BigDecimal profileAccuracy,
+        Double profileAccuracy,
 
         @NotNull(message = "La frecuencia de ahorro es obligatoria")
-        SavingFrequency savingFrequency) {
+        SavingFrequency savingFrequency,
+
+        /**
+         * Ingreso mensual con el que se calculó el perfil. Opcional: {@code null} deja el valor
+         * que ya tuviera el usuario, de modo que {@code PUT /api/users/{id}/profile} sigue
+         * funcionando sin enviarlo.
+         */
+        @DecimalMin(value = "0.0", message = "El ingreso mensual no puede ser negativo")
+        BigDecimal monthlyIncome) {
+
+    /** Perfil sin tocar el ingreso previamente registrado. */
+    public ProfileUpdateRequest(FinancialProfile financialProfile,
+                                Double profileAccuracy,
+                                SavingFrequency savingFrequency) {
+        this(financialProfile, profileAccuracy, savingFrequency, null);
+    }
 }

@@ -1,9 +1,10 @@
 package com.g9latam.team62.fintech_api.service;
 
+import com.fasterxml.jackson.core.JsonProcessingException;
 import com.fasterxml.jackson.databind.JsonNode;
 import com.fasterxml.jackson.databind.ObjectMapper;
-import com.g9latam.team62.fintech_api.dto.ClassificationResult;
 import com.g9latam.team62.fintech_api.dto.StatementIngestionResult;
+import com.g9latam.team62.fintech_api.dto.TransactionResponse;
 import com.g9latam.team62.fintech_api.model.Category;
 import com.g9latam.team62.fintech_api.model.CategoryMethod;
 import com.g9latam.team62.fintech_api.model.Currency;
@@ -13,8 +14,11 @@ import com.g9latam.team62.fintech_api.model.Transaction;
 import com.g9latam.team62.fintech_api.model.TransactionSource;
 import com.g9latam.team62.fintech_api.repository.UserRepository;
 
+import jakarta.annotation.PostConstruct;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
+import org.springframework.beans.factory.annotation.Value;
+import org.springframework.core.io.Resource;
 import org.springframework.lang.NonNull;
 import org.springframework.stereotype.Service;
 import org.springframework.util.StringUtils;
@@ -26,18 +30,42 @@ import java.io.InputStream;
 import java.math.BigDecimal;
 import java.nio.charset.StandardCharsets;
 import java.nio.file.Files;
+import java.nio.file.Path;
 import java.nio.file.StandardCopyOption;
 import java.time.LocalDate;
 import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.List;
 import java.util.UUID;
+import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.TimeUnit;
 
 @Service
 public class StatementIngestionService {
 
     private static final Logger log = LoggerFactory.getLogger(StatementIngestionService.class);
+
+    private static final int PARSER_TIMEOUT_SECONDS = 30;
+
+    private static final String PARSER_UNAVAILABLE =
+            "El parser de cartolas no está disponible en este despliegue. "
+          + "Se esperaba el script en \"%s\"; revisa la propiedad statement.parser.script.";
+
+    /**
+     * Ubicación del script de ingesta. Por defecto se lee del classpath, donde el build lo
+     * deja empaquetado dentro del jar (ver maven-resources-plugin en pom.xml), de modo que
+     * la ruta no depende del directorio desde el que se ejecute la aplicación. Admite
+     * cualquier prefijo de Spring: {@code classpath:...} o {@code file:...}.
+     */
+    @Value("${statement.parser.script:classpath:scripts/procesar_cartola_cli.py}")
+    private Resource scriptResource;
+
+    /** Intérprete a usar. Vacío deja que se deduzca del sistema operativo. */
+    @Value("${statement.parser.python:}")
+    private String configuredPython;
+
+    /** Ruta ya resuelta en disco, o {@code null} si el script no se pudo localizar al arrancar. */
+    private Path scriptPath;
 
     private final UserRepository userRepository;
     private final TransactionService transactionService;
@@ -59,7 +87,43 @@ public class StatementIngestionService {
         this.classifierService = classifierService;
     }
 
+    /**
+     * Deja el script accesible como archivo antes de la primera petición. Dentro del jar es una
+     * entrada comprimida y no una ruta del sistema de archivos, así que hay que extraerlo; se
+     * hace una sola vez al arrancar y no en cada subida.
+     *
+     * <p>Un fallo aquí no impide arrancar: solo se pierde la ingesta de cartolas, y el resto de
+     * la API sigue siendo útil. Queda registrado en el log y la petición correspondiente lo
+     * informa con el mismo texto.
+     */
+    @PostConstruct
+    void resolveParserScript() {
+        try {
+            if (!scriptResource.exists()) {
+                log.error(PARSER_UNAVAILABLE.formatted(scriptResource));
+                return;
+            }
+            try {
+                // Classpath explotado o ruta file:, utilizable tal cual.
+                scriptPath = scriptResource.getFile().toPath();
+            } catch (IOException insideJar) {
+                Path extracted = Files.createTempFile("procesar_cartola_", ".py");
+                try (InputStream in = scriptResource.getInputStream()) {
+                    Files.copy(in, extracted, StandardCopyOption.REPLACE_EXISTING);
+                }
+                extracted.toFile().deleteOnExit();
+                scriptPath = extracted;
+            }
+            log.info("Parser de cartolas resuelto en {}", scriptPath);
+        } catch (IOException e) {
+            log.error(PARSER_UNAVAILABLE.formatted(scriptResource), e);
+        }
+    }
+
     public StatementIngestionResult ingestStatement(MultipartFile file, @NonNull Long userId, Integer defaultYear, String country) {
+        if (scriptPath == null) {
+            throw new IllegalStateException(PARSER_UNAVAILABLE.formatted(scriptResource));
+        }
         validateUserAndFile(userId, file);
         
         File tempFile = null;
@@ -130,14 +194,8 @@ public class StatementIngestionService {
 
     private JsonNode executePythonScript(File tempFile, Integer defaultYear, String country) throws IOException, InterruptedException {
         List<String> command = new ArrayList<>();
-        String pythonExec = System.getProperty("os.name").toLowerCase().contains("win") ? "python" : "python3";
-        command.add(pythonExec);
-        
-        File scriptFile = new File("backend/scripts/procesar_cartola_cli.py");
-        if (!scriptFile.exists()) {
-            scriptFile = new File("scripts/procesar_cartola_cli.py");
-        }
-        command.add(scriptFile.getAbsolutePath());
+        command.add(pythonExecutable());
+        command.add(scriptPath.toAbsolutePath().toString());
         command.add(tempFile.getAbsolutePath());
 
         if (defaultYear != null) {
@@ -149,31 +207,97 @@ public class StatementIngestionService {
             command.add(country);
         }
 
-        ProcessBuilder pb = new ProcessBuilder(command);
-        pb.redirectErrorStream(false);
-        Process process = pb.start();
+        Process process = new ProcessBuilder(command).start();
 
-        String jsonOutput;
-        try (InputStream stdout = process.getInputStream()) {
-            jsonOutput = new String(stdout.readAllBytes(), StandardCharsets.UTF_8);
-        }
+        // Los dos flujos se drenan en paralelo. Leer uno hasta el final antes de tocar el otro
+        // bloquea al proceso hijo en cuanto llena el buffer de la tubería que nadie está
+        // vaciando, y en ese estado el timeout de abajo ni siquiera llega a evaluarse.
+        CompletableFuture<String> stdout = readAsync(process.getInputStream());
+        CompletableFuture<String> stderr = readAsync(process.getErrorStream());
 
-        boolean finished = process.waitFor(30, TimeUnit.SECONDS);
-        if (!finished) {
+        if (!process.waitFor(PARSER_TIMEOUT_SECONDS, TimeUnit.SECONDS)) {
             process.destroyForcibly();
-            throw new IllegalStateException("El procesamiento de la cartola excedió el tiempo límite de 30 segundos.");
+            throw new IllegalStateException(
+                    "El procesamiento de la cartola excedió el tiempo límite de "
+                  + PARSER_TIMEOUT_SECONDS + " segundos.");
         }
 
         int exitCode = process.exitValue();
-        JsonNode root = objectMapper.readTree(jsonOutput);
+        String jsonOutput = stdout.join();
+        String errorOutput = stderr.join();
 
-        String status = root.path("status").asText();
+        // El traceback completo va al log y nunca al cliente: ahí están las rutas del servidor.
+        if (!errorOutput.isBlank()) {
+            log.warn("El parser de cartolas escribió en stderr (código {}):\n{}", exitCode, errorOutput);
+        }
+
+        JsonNode root = tryParseJson(jsonOutput);
+        String status = root != null ? root.path("status").asText("") : "";
+
         if (exitCode != 0 || "error".equalsIgnoreCase(status)) {
-            String errorMsg = root.path("mensaje").asText("Error desconocido procesando la cartola bancaria");
-            throw new IllegalArgumentException("Error procesando la cartola: " + errorMsg);
+            throw new IllegalArgumentException(
+                    "Error procesando la cartola: " + describeFailure(root, errorOutput, exitCode));
+        }
+        if (root == null) {
+            log.error("El parser terminó con código 0 pero su salida no es JSON:\n{}", jsonOutput);
+            throw new IllegalStateException(
+                    "El parser de cartolas terminó correctamente pero no devolvió un JSON válido.");
         }
 
         return root;
+    }
+
+    private String pythonExecutable() {
+        if (configuredPython != null && !configuredPython.isBlank()) {
+            return configuredPython;
+        }
+        return System.getProperty("os.name").toLowerCase().contains("win") ? "python" : "python3";
+    }
+
+    private CompletableFuture<String> readAsync(InputStream stream) {
+        return CompletableFuture.supplyAsync(() -> {
+            try (InputStream in = stream) {
+                return new String(in.readAllBytes(), StandardCharsets.UTF_8);
+            } catch (IOException e) {
+                log.warn("No se pudo leer la salida del parser de cartolas", e);
+                return "";
+            }
+        });
+    }
+
+    private JsonNode tryParseJson(String output) {
+        if (output == null || output.isBlank()) {
+            return null;
+        }
+        try {
+            return objectMapper.readTree(output);
+        } catch (JsonProcessingException e) {
+            return null;
+        }
+    }
+
+    /**
+     * Arma el mensaje que verá quien subió la cartola. El script reporta sus errores previstos
+     * como JSON en {@code mensaje}; cuando muere antes de llegar a imprimirlo —dependencia que
+     * falta, archivo ilegible— lo único que queda es el traceback, cuya última línea es
+     * justamente la que nombra la causa.
+     */
+    private String describeFailure(JsonNode root, String errorOutput, int exitCode) {
+        if (root != null) {
+            String reported = root.path("mensaje").asText("");
+            if (!reported.isBlank()) {
+                return reported;
+            }
+        }
+        String lastLine = errorOutput.lines()
+                .map(String::strip)
+                .filter(line -> !line.isEmpty())
+                .reduce((first, second) -> second)
+                .orElse("");
+        if (!lastLine.isBlank()) {
+            return lastLine;
+        }
+        return "el parser terminó con código " + exitCode + " sin describir el error";
     }
 
     private List<Transaction> processAndSaveTransactions(JsonNode root, Long userId, String requestedCountry) {
@@ -219,10 +343,11 @@ public class StatementIngestionService {
             if (desc != null && !desc.isBlank()) {
                 ClassificationResult classification = classifierService.classify(desc);
                 transaction.setCategory(classification.category());
-                transaction.setCategoryMethod(parseCategoryMethod(classification.method()));
+                transaction.setCategoryMethod(classification.method());
                 transaction.setCategoryConfidence(classification.confidence());
             } else {
                 transaction.setCategory(Category.OTHER_EXPENSE);
+                transaction.setCategoryMethod(CategoryMethod.FALLBACK);
             }
 
             createdTransactions.add(transactionService.create(transaction));
@@ -278,7 +403,7 @@ public class StatementIngestionService {
                 root.path("filas_validas").asInt(0),
                 root.path("filas_descartadas").asInt(0),
                 warnings,
-                createdTransactions
+                TransactionResponse.fromEntities(createdTransactions)
         );
     }
 
@@ -290,12 +415,4 @@ public class StatementIngestionService {
         }
     }
 
-    private CategoryMethod parseCategoryMethod(String methodStr) {
-        if (methodStr == null) return CategoryMethod.FALLBACK;
-        try {
-            return CategoryMethod.valueOf(methodStr.toUpperCase());
-        } catch (IllegalArgumentException e) {
-            return CategoryMethod.FALLBACK;
-        }
-    }
 }

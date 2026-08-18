@@ -1,4 +1,4 @@
-package com.g9latam.team62.fintech_api.dto;
+package com.g9latam.team62.fintech_api.service;
 
 import com.g9latam.team62.fintech_api.model.Category;
 

@@ -1,5 +1,6 @@
 package com.g9latam.team62.fintech_api;
 
+import com.g9latam.team62.fintech_api.dto.CurrencyRef;
 import com.g9latam.team62.fintech_api.dto.ManualTransactionRequest;
 import com.g9latam.team62.fintech_api.model.Category;
 import com.g9latam.team62.fintech_api.model.Currency;
@@ -124,7 +125,7 @@ class ReconciliationAndDuplicateTests {
                 new BigDecimal("4990.00"),
                 Category.ENTERTAINMENT,
                 "Netflix Premium Subscription",
-                currencyNamed("CLP"),
+                currencyRef("CLP"),
                 PaymentMethod.DEBIT,
                 "Manual",
                 null
@@ -168,7 +169,7 @@ class ReconciliationAndDuplicateTests {
                 new BigDecimal("12000.00"),
                 Category.FOOD,
                 "Almuerzo Casero en Efectivo",
-                currencyNamed("CLP"),
+                currencyRef("CLP"),
                 PaymentMethod.CASH,
                 "Manual",
                 null
@@ -232,7 +233,7 @@ class ReconciliationAndDuplicateTests {
                 new BigDecimal("5000.00"),
                 Category.FOOD,
                 "Lider Supermarket",
-                currencyNamed("CLP"),
+                currencyRef("CLP"),
                 PaymentMethod.DEBIT,
                 "Manual",
                 null
@@ -288,7 +289,7 @@ class ReconciliationAndDuplicateTests {
                 new BigDecimal("7990.00"),
                 Category.ENTERTAINMENT,
                 "Disney Plus",
-                currencyNamed("CLP"),
+                currencyRef("CLP"),
                 PaymentMethod.DEBIT,
                 "SANTANDER",
                 null
@@ -326,7 +327,7 @@ class ReconciliationAndDuplicateTests {
                 new BigDecimal("1500.00"),
                 Category.TRANSPORT,
                 "Metro de Santiago",
-                currencyNamed("CLP"),
+                currencyRef("CLP"),
                 PaymentMethod.DEBIT,
                 "CUENTA_RUT",
                 "OP-METRO-111"
@@ -359,6 +360,11 @@ class ReconciliationAndDuplicateTests {
 
     private RegisterRequest newUser(String email) {
         return new RegisterRequest("Test User", email, "secret");
+    }
+
+    // la petición manual nombra la moneda, no la trae: {"name_currency": "CLP"}
+    private CurrencyRef currencyRef(String name) {
+        return new CurrencyRef(null, name);
     }
 
     private Currency currencyNamed(String name) {

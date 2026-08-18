@@ -1,6 +1,7 @@
 package com.g9latam.team62.fintech_api.service;
 
-import com.g9latam.team62.fintech_api.dto.ClassificationResult;
+import com.g9latam.team62.fintech_api.dto.CurrencyRef;
+import com.g9latam.team62.fintech_api.exception.NotFoundException;
 import com.g9latam.team62.fintech_api.dto.ManualTransactionRequest;
 import com.g9latam.team62.fintech_api.model.Category;
 import com.g9latam.team62.fintech_api.model.CategoryMethod;
@@ -59,13 +60,7 @@ public class TransactionService {
             transaction.setLinkStatus(LinkStatus.UNLINKED);
         }
 
-        // Clasificación automática si no trae categoría definida o si viene requerida
-        if (transaction.getCategory() == null && transaction.getDescription() != null && !transaction.getDescription().isBlank()) {
-            ClassificationResult result = classifierService.classify(transaction.getDescription());
-            transaction.setCategory(result.category());
-            transaction.setCategoryMethod(parseCategoryMethod(result.method()));
-            transaction.setCategoryConfidence(result.confidence());
-        }
+        ensureCategory(transaction);
 
         // 1. Duplication Prevention (for BANK statements)
         if (transaction.getSource() == TransactionSource.BANK) {
@@ -139,13 +134,37 @@ public class TransactionService {
         return repository.save(transaction);
     }
 
-    private CategoryMethod parseCategoryMethod(String methodStr) {
-        if (methodStr == null) return CategoryMethod.FALLBACK;
-        try {
-            return CategoryMethod.valueOf(methodStr.toUpperCase());
-        } catch (IllegalArgumentException e) {
-            return CategoryMethod.FALLBACK;
+    /**
+     * Garantiza que la transacción quede con categoría antes de persistirla.
+     *
+     * <p>La columna es {@code NOT NULL}, así que este es el punto donde se cumple el invariante:
+     * si el cliente no la envía se clasifica por descripción, y si tampoco hay descripción se
+     * asigna el fallback. Sin esto, dejar la categoría opcional en la petición trasladaría el
+     * error a una violación de restricción de la base de datos.
+     *
+     * <p>Una categoría que sí venía en la petición se respeta tal cual: es una decisión del
+     * usuario y se marca como {@code USER_PROVIDED}.
+     */
+    private void ensureCategory(Transaction transaction) {
+        if (transaction.getCategory() != null) {
+            if (transaction.getCategoryMethod() == null) {
+                transaction.setCategoryMethod(CategoryMethod.USER_PROVIDED);
+            }
+            return;
         }
+
+        String description = transaction.getDescription();
+        if (description != null && !description.isBlank()) {
+            ClassificationResult result = classifierService.classify(description);
+            transaction.setCategory(result.category());
+            transaction.setCategoryMethod(result.method());
+            transaction.setCategoryConfidence(result.confidence());
+            return;
+        }
+
+        transaction.setCategory(Category.OTHER_EXPENSE);
+        transaction.setCategoryMethod(CategoryMethod.FALLBACK);
+        transaction.setCategoryConfidence(0.0);
     }
 
     /**
@@ -161,13 +180,14 @@ public class TransactionService {
         transaction.setCategory(request.category());
         transaction.setDescription(request.description());
         transaction.setDate(LocalDate.now());
-        Currency currencyRef = request.currency() != null ? request.currency() : new Currency(1L, "CLP");
-        transaction.setCurrency(resolveCurrency(currencyRef));
+        CurrencyRef currencyRef = request.currency() != null ? request.currency() : CurrencyRef.DEFAULT;
+        transaction.setCurrency(resolveCurrency(currencyRef.toReference()));
         transaction.setSource(TransactionSource.MANUAL);
         transaction.setPaymentMethod(request.paymentMethod());
-        transaction.setCategoryMethod(CategoryMethod.USER_PROVIDED);
         transaction.setLinkStatus(LinkStatus.UNLINKED);
         transaction.setBankName(request.bankName());
+        // Respeta la categoría elegida por el usuario y clasifica solo cuando la omite.
+        ensureCategory(transaction);
 
         // 1. CASH transactions get a unique sequence number and bypass linking
         if (request.paymentMethod() == PaymentMethod.CASH) {
@@ -253,7 +273,7 @@ public class TransactionService {
     @Transactional
     public Transaction updateCategory(@NonNull Long id, Category newCategory) {
         Transaction transaction = repository.findById(id)
-                .orElseThrow(() -> new IllegalArgumentException("La transacción " + id + " no existe"));
+                .orElseThrow(() -> new NotFoundException("La transacción " + id + " no existe"));
 
         transaction.setCategory(newCategory);
         transaction.setCategoryMethod(CategoryMethod.USER_CORRECTED);
@@ -281,12 +301,49 @@ public class TransactionService {
         return repository.findByUserId(userId);
     }
 
+    /** Los movimientos indicados que además pertenezcan al usuario; los demás se ignoran. */
+    public List<Transaction> findByUserIdAndIds(Long userId, Collection<Long> ids) {
+        if (ids == null || ids.isEmpty()) {
+            return List.of();
+        }
+        return repository.findByUserIdAndIdIn(userId, ids);
+    }
+
+    /**
+     * Aplica sobre la transacción guardada los campos que el cliente administra.
+     *
+     * <p>Antes se guardaba la entidad recibida tal cual, así que lo que la petición no trajera se
+     * escribía como {@code null}: el enlace con su contraparte y la trazabilidad de la
+     * clasificación desaparecían en cualquier edición parcial. Esos campos son del servidor y aquí
+     * se conservan; la categoría, si cambia, pasa a contar como decisión del usuario.
+     */
     @Transactional
-    public Transaction update(@NonNull Long id, Transaction transaction) {
-        requireUserExists(transaction.getUserId());
-        transaction.setCurrency(resolveCurrency(transaction.getCurrency()));
-        transaction.setId(id);
-        return repository.save(transaction);
+    public Transaction update(@NonNull Long id, Transaction changes) {
+        Transaction stored = repository.findById(id)
+                .orElseThrow(() -> new NotFoundException("La transacción " + id + " no existe"));
+        requireUserExists(changes.getUserId());
+
+        stored.setUserId(changes.getUserId());
+        stored.setDescription(changes.getDescription());
+        stored.setOperationNumber(changes.getOperationNumber());
+        stored.setAmount(changes.getAmount());
+        stored.setDate(changes.getDate());
+        stored.setCurrency(resolveCurrency(changes.getCurrency()));
+        stored.setBalanceAfter(changes.getBalanceAfter());
+        stored.setBankName(changes.getBankName());
+        if (changes.getSource() != null) {
+            stored.setSource(changes.getSource());
+        }
+        if (changes.getPaymentMethod() != null) {
+            stored.setPaymentMethod(changes.getPaymentMethod());
+        }
+        if (changes.getCategory() != null && changes.getCategory() != stored.getCategory()) {
+            stored.setCategory(changes.getCategory());
+            stored.setCategoryMethod(CategoryMethod.USER_PROVIDED);
+            stored.setCategoryConfidence(null);
+        }
+        ensureCategory(stored);
+        return repository.save(stored);
     }
 
     @Transactional

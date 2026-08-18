@@ -1,6 +1,5 @@
 package com.g9latam.team62.fintech_api.dto;
 
-import com.g9latam.team62.fintech_api.model.Transaction;
 
 import jakarta.validation.constraints.Min;
 import jakarta.validation.constraints.NotBlank;
@@ -40,7 +39,7 @@ public record StatementIngestionResult(
         List<String> warnings, 
         
         @NotEmpty(message = "Debe tener al menos una transacción")
-        List<Transaction> createdTransactions
+        List<TransactionResponse> createdTransactions
 ) {
     public StatementIngestionResult {
         if (warnings == null) {

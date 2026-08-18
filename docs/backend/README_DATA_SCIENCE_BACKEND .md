@@ -107,8 +107,8 @@ El módulo `BudgetRecommendationService` aplica métricas estadísticas sobre lo
 
 ## ⚙️ 5. Requisitos y Configuración del Entorno
 
-### Dependencias de Python (`requirements.txt`)
-Las librerías de Python requeridas para ejecutar la ingesta y soporte de Data Science se encuentran en `requirements.txt`:
+### Dependencias de Python (`backend/requirements.txt`)
+Las librerías de Python requeridas para ejecutar la ingesta y soporte de Data Science se encuentran en `backend/requirements.txt`. Viven junto al backend porque el `Dockerfile` las instala en la imagen —su contexto de build es `./backend` y no alcanza la raíz del repositorio:
 
 ```txt
 pdfplumber
@@ -120,7 +120,7 @@ holidays
 
 Para instalarlas en el entorno de desarrollo:
 ```bash
-pip install -r requirements.txt
+pip install -r backend/requirements.txt
 ```
 
 ### Propiedades de Conexión en Spring Boot (`application.properties`)
@@ -142,4 +142,4 @@ ml.inference.min-confidence=0.60
 - ☕ [CategoryClassifierService.java](backend/src/main/java/com/g9latam/team62/fintech_api/service/CategoryClassifierService.java): Motor jerárquico de 4 niveles y función `learnFromFeedback`.
 - ☕ [MlInferenceService.java](backend/src/main/java/com/g9latam/team62/fintech_api/service/MlInferenceService.java): Cliente REST para consultar la API de Machine Learning.
 - ☕ [BudgetRecommendationService.java](backend/src/main/java/com/g9latam/team62/fintech_api/service/BudgetRecommendationService.java): Motor de sugerencias basado en datos estadísticos del INE.
-- 📝 [requirements.txt](requirements.txt): Requerimientos de paquetes de Python.
+- 📝 [requirements.txt](backend/requirements.txt): Requerimientos de paquetes de Python.

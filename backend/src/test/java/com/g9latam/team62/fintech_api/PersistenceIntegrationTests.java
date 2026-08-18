@@ -1,6 +1,8 @@
 package com.g9latam.team62.fintech_api;
 
 import com.g9latam.team62.fintech_api.dto.RegisterRequest;
+import com.g9latam.team62.fintech_api.dto.TransactionResponse;
+import com.g9latam.team62.fintech_api.exception.ConflictException;
 import com.g9latam.team62.fintech_api.model.Category;
 import com.g9latam.team62.fintech_api.model.Currency;
 import com.g9latam.team62.fintech_api.model.Recommendation;
@@ -61,16 +63,16 @@ class PersistenceIntegrationTests {
             assertThat(result.status()).isEqualTo("ok");
             assertThat(result.createdTransactions()).isNotEmpty();
             
-            Transaction firstWithOp = result.createdTransactions().stream()
-                    .filter(t -> "PAGO FERNANDOVASCO".equals(t.getDescription()))
+            TransactionResponse firstWithOp = result.createdTransactions().stream()
+                    .filter(t -> "PAGO FERNANDOVASCO".equals(t.description()))
                     .findFirst()
                     .orElse(null);
-            
+
             assertThat(firstWithOp).isNotNull();
-            assertThat(firstWithOp.getOperationNumber()).isEqualTo("8073913");
-            assertThat(firstWithOp.getCurrency().getNameCurrency()).isEqualTo("CLP");
-            assertThat(firstWithOp.getBalanceAfter()).isEqualByComparingTo("30852");
-            assertThat(firstWithOp.getBankName()).isEqualTo("CUENTA_RUT");
+            assertThat(firstWithOp.operationNumber()).isEqualTo("8073913");
+            assertThat(firstWithOp.currency().nameCurrency()).isEqualTo("CLP");
+            assertThat(firstWithOp.balanceAfter()).isEqualByComparingTo("30852");
+            assertThat(firstWithOp.bankName()).isEqualTo("CUENTA_RUT");
         }
     }
 
@@ -91,7 +93,7 @@ class PersistenceIntegrationTests {
         userService.create(newUser("ada@example.com"));
 
         assertThatThrownBy(() -> userService.create(newUser("ADA@EXAMPLE.COM")))
-                .isInstanceOf(IllegalStateException.class);
+                .isInstanceOf(ConflictException.class);
     }
 
     @Test

@@ -57,10 +57,10 @@ Además, el sistema cuenta con **aprendizaje continuo en tiempo real (crowdsourc
 - **`CategoryMapping.java`**: Entidad que representa la tabla `transaction_category_mappings`. Guarda el patrón de descripción normalizado, la categoría asociada y el contador de frecuencia de uso.
 - **`CategoryKeyword.java`**: Entidad que representa la tabla `category_keywords`. Guarda palabras clave asociadas dinámicamente a cada categoría (ej: "JUMBO" $\rightarrow$ `FOOD`, "UBER" $\rightarrow$ `TRANSPORT`).
 
-### 2. DTOs (`dto`)
-- **`ClassificationResult.java`**: Objeto inmutable que retorna el resultado de la clasificación (`category`, `confidence`, `method`).
-- **`MlPrediction.java`**: DTO para las respuestas esperadas del modelo ML.
-- **`CategoryCorrectionRequest.java`**: DTO para la petición de corrección `PUT /api/transactions/{id}/category`.
+### 2. Resultados internos (`service`) y DTOs (`dto`)
+- **`ClassificationResult.java`** (`service`): Objeto inmutable que retorna el resultado de la clasificación (`category`, `confidence`, `method`). Vive junto a los servicios y no en `dto` porque nunca cruza HTTP: es el resultado que un servicio le entrega a otro.
+- **`MlPrediction.java`** (`service`): Respuesta esperada del modelo ML, también de uso interno.
+- **`CategoryCorrectionRequest.java`** (`dto`): DTO para la petición de corrección `PUT /api/transactions/{id}/category`.
 
 ### 3. Repositorios (`repository`)
 - **`CategoryMappingRepository.java`**: Maneja el almacenamiento en memoria y búsqueda por patrón exacto (`findByDescriptionPattern`).

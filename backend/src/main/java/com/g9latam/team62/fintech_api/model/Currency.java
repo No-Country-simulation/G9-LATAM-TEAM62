@@ -10,13 +10,15 @@ import jakarta.persistence.Table;
 import jakarta.persistence.UniqueConstraint;
 import jakarta.validation.constraints.NotBlank;
 import lombok.AllArgsConstructor;
-import lombok.Data;
+import lombok.Getter;
+import lombok.Setter;
 import lombok.NoArgsConstructor;
 
 @Entity
 @Table(name = "currencies",
         uniqueConstraints = @UniqueConstraint(name = "uk_currencies_name", columnNames = "name_currency"))
-@Data
+@Getter
+@Setter
 @NoArgsConstructor
 @AllArgsConstructor
 public class Currency {
@@ -29,4 +31,21 @@ public class Currency {
     @JsonProperty("name_currency")
     @Column(name = "name_currency", nullable = false, length = 100)
     private String nameCurrency;
+
+    // Identidad por clave primaria; el porqué está en User.equals.
+    @Override
+    public boolean equals(Object other) {
+        if (this == other) {
+            return true;
+        }
+        if (!(other instanceof Currency otro)) {
+            return false;
+        }
+        return id != null && id.equals(otro.getId());
+    }
+
+    @Override
+    public int hashCode() {
+        return Currency.class.hashCode();
+    }
 }

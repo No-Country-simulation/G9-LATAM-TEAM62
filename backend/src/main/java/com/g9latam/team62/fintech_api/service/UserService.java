@@ -1,7 +1,10 @@
 package com.g9latam.team62.fintech_api.service;
 
 import com.g9latam.team62.fintech_api.dto.ProfileUpdateRequest;
+import com.g9latam.team62.fintech_api.exception.ConflictException;
+import com.g9latam.team62.fintech_api.exception.NotFoundException;
 import com.g9latam.team62.fintech_api.dto.RegisterRequest;
+import com.g9latam.team62.fintech_api.dto.UserUpdateRequest;
 import com.g9latam.team62.fintech_api.model.FinancialProfileHistory;
 import com.g9latam.team62.fintech_api.model.User;
 import com.g9latam.team62.fintech_api.repository.FinancialProfileHistoryRepository;
@@ -69,27 +72,41 @@ public class UserService {
         return repository.findByEmail(email);
     }
 
+    /**
+     * Actualiza los datos que el propio usuario administra. El perfil financiero no se toca aquí:
+     * lo escribe {@link #updateProfile}, y como la petición ya no puede nombrarlo, tampoco hace
+     * falta restaurarlo campo por campo después de recibirlo.
+     */
     @Transactional
-    public User update(@NonNull Long id, User user) {
-        User existing = repository.findById(id)
-                .orElseThrow(() -> new IllegalArgumentException("user " + id + " does not exist"));
-        requireEmailAvailable(user.getEmail(), id);
-        user.setId(id);
-        user.setPassword(passwordEncoder.encode(user.getPassword()));
-        user.setFinancialProfile(existing.getFinancialProfile());
-        user.setProfileAccuracy(existing.getProfileAccuracy());
-        user.setProfileUpdatedAt(existing.getProfileUpdatedAt());
+    public User update(@NonNull Long id, UserUpdateRequest request) {
+        User user = repository.findById(id)
+                .orElseThrow(() -> new NotFoundException("El usuario " + id + " no existe"));
+        requireEmailAvailable(request.email(), id);
+
+        user.setName(request.name());
+        user.setEmail(request.email());
+        if (request.password() != null && !request.password().isBlank()) {
+            user.setPassword(passwordEncoder.encode(request.password()));
+        }
+        user.setMonthlyIncome(request.monthlyIncome());
+        user.setSavingFrequency(request.savingFrequency());
         return repository.save(user);
     }
 
     @Transactional
     public User updateProfile(@NonNull Long id, ProfileUpdateRequest request) {
         User user = repository.findById(id)
-                .orElseThrow(() -> new IllegalArgumentException("user " + id + " does not exist"));
+                .orElseThrow(() -> new NotFoundException("El usuario " + id + " no existe"));
         user.setFinancialProfile(request.financialProfile());
         user.setProfileAccuracy(request.profileAccuracy());
         if (request.savingFrequency() != null) {
             user.setSavingFrequency(request.savingFrequency());
+        }
+        // Se escribe aquí, sobre la entidad gestionada que este método ya carga y guarda.
+        // Hacerlo desde el controlador no funcionaba: allí el User está desligado de la
+        // sesión de persistencia y el save() de más abajo lo pisaba con lo que hay en BD.
+        if (request.monthlyIncome() != null) {
+            user.setMonthlyIncome(request.monthlyIncome());
         }
         user.setProfileUpdatedAt(LocalDateTime.now());
 
@@ -125,7 +142,7 @@ public class UserService {
     @Transactional
     public void changePassword(String email, String oldPassword, String newPassword) {
         User user = repository.findByEmail(email)
-                .orElseThrow(() -> new IllegalArgumentException("User not found: " + email));
+                .orElseThrow(() -> new NotFoundException("No existe un usuario con el correo " + email));
         if (!passwordEncoder.matches(oldPassword, user.getPassword())) {
             throw new IllegalArgumentException("Incorrect password");
         }
@@ -149,7 +166,7 @@ public class UserService {
         repository.findByEmail(email)
                 .filter(other -> !other.getId().equals(ownId))
                 .ifPresent(other -> {
-                    throw new IllegalStateException("email " + email + " is already registered");
+                    throw new ConflictException("El correo " + email + " ya está registrado");
                 });
     }
 }

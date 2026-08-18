@@ -1,10 +1,10 @@
 package com.g9latam.team62.fintech_api.model;
 
 import lombok.AllArgsConstructor;
-import lombok.Data;
+import lombok.Getter;
+import lombok.Setter;
 import lombok.NoArgsConstructor;
 
-import java.math.BigDecimal;
 import java.time.LocalDateTime;
 
 import jakarta.persistence.Entity;
@@ -17,7 +17,8 @@ import jakarta.persistence.EnumType;
 
 @Entity
 @Table(name = "financial_profile_history")
-@Data
+@Getter
+@Setter
 @NoArgsConstructor
 @AllArgsConstructor
 public class FinancialProfileHistory {
@@ -29,6 +30,24 @@ public class FinancialProfileHistory {
     
     @Enumerated(EnumType.STRING)
     private FinancialProfile financialProfile;
-    private BigDecimal profileAccuracy;
+    // Double para coincidir con la columna FLOAT; ver la nota en User.profileAccuracy.
+    private Double profileAccuracy;
     private LocalDateTime createdAt = LocalDateTime.now();
+
+    // Identidad por clave primaria; el porqué está en User.equals.
+    @Override
+    public boolean equals(Object other) {
+        if (this == other) {
+            return true;
+        }
+        if (!(other instanceof FinancialProfileHistory otro)) {
+            return false;
+        }
+        return id != null && id.equals(otro.getId());
+    }
+
+    @Override
+    public int hashCode() {
+        return FinancialProfileHistory.class.hashCode();
+    }
 }

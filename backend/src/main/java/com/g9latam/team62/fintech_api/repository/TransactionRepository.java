@@ -9,10 +9,14 @@ import org.springframework.data.repository.query.Param;
  
 import java.math.BigDecimal;
 import java.time.LocalDate;
+import java.util.Collection;
 import java.util.List;
  
 public interface TransactionRepository extends JpaRepository<Transaction, Long> {
     List<Transaction> findByUserId(Long userId);
+
+    // el filtro por usuario va en la consulta, no después: así un id ajeno nunca llega a la lista
+    List<Transaction> findByUserIdAndIdIn(Long userId, Collection<Long> ids);
     List<Transaction> findByUserIdAndDateBetween(Long userId, LocalDate start, LocalDate end);
     void deleteByUserId(Long userId);
 

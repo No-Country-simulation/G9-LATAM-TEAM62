@@ -17,7 +17,8 @@ import jakarta.validation.constraints.NotNull;
 import jakarta.validation.constraints.PastOrPresent;
 import jakarta.validation.constraints.Positive;
 import lombok.AllArgsConstructor;
-import lombok.Data;
+import lombok.Getter;
+import lombok.Setter;
 import lombok.NoArgsConstructor;
 
 import java.math.BigDecimal;
@@ -25,7 +26,8 @@ import java.time.LocalDate;
 
 @Entity
 @Table(name = "transactions", indexes = @Index(name = "idx_transactions_user_id", columnList = "user_id"))
-@Data
+@Getter
+@Setter
 @NoArgsConstructor
 @AllArgsConstructor
 public class Transaction {
@@ -45,7 +47,9 @@ public class Transaction {
     @Column(nullable = false, precision = 19, scale = 2)
     private BigDecimal amount;
 
-    @NotNull
+    // Sin @NotNull a propósito: omitirla en la petición es la forma de pedir clasificación
+    // automática. La columna sigue siendo NOT NULL y TransactionService.ensureCategory se
+    // encarga de que nunca se persista nula.
     @Enumerated(EnumType.STRING)
     @Column(nullable = false, length = 50)
     private Category category;
@@ -94,5 +98,22 @@ public class Transaction {
 
     public TransactionType getType() {
         return category == null ? null : category.getType();
+    }
+
+    // Identidad por clave primaria; el porqué está en User.equals.
+    @Override
+    public boolean equals(Object other) {
+        if (this == other) {
+            return true;
+        }
+        if (!(other instanceof Transaction otro)) {
+            return false;
+        }
+        return id != null && id.equals(otro.getId());
+    }
+
+    @Override
+    public int hashCode() {
+        return Transaction.class.hashCode();
     }
 }

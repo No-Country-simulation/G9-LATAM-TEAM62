@@ -16,6 +16,10 @@ services:
     # set SPRING_PROFILES_ACTIVE=oracle once the wallet and credentials are in place.
     environment:
       SPRING_PROFILES_ACTIVE: ${SPRING_PROFILES_ACTIVE:-dev}
+      # No default on purpose: the backend refuses to start without a signing key,
+      # so a missing JWT_SECRET fails loudly here instead of falling back to a
+      # value anyone could read in the repository. See .env.example.
+      JWT_SECRET: ${JWT_SECRET:?JWT_SECRET no está definido en el .env — generar con "openssl rand -hex 32"}
       ORACLE_JDBC_URL: ${ORACLE_JDBC_URL:-}
       ORACLE_DB_USER: ${ORACLE_DB_USER:-}
       ORACLE_DB_PASSWORD: ${ORACLE_DB_PASSWORD:-}

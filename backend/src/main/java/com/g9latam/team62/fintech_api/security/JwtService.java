@@ -4,10 +4,12 @@ import io.jsonwebtoken.Claims;
 import io.jsonwebtoken.Jwts;
 import io.jsonwebtoken.SignatureAlgorithm;
 import io.jsonwebtoken.security.Keys;
+import jakarta.annotation.PostConstruct;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.security.core.userdetails.UserDetails;
 import org.springframework.stereotype.Service;
 
+import java.nio.charset.StandardCharsets;
 import java.security.Key;
 import java.util.Date;
 import java.util.HashMap;
@@ -17,11 +19,33 @@ import java.util.function.Function;
 @Service
 public class JwtService {
 
-    @Value("${jwt.secret:404E635266556A586E3272357538782F413F4428472B4B6250645367566B5970}")
+    /** HS256 exige una clave de al menos 256 bits. */
+    private static final int MIN_SECRET_BYTES = 32;
+
+    // Sin valor por defecto a propósito: una clave de firma ausente debe detener el arranque,
+    // nunca caer en un valor que viva en el repositorio. Quien pueda leerlo podría firmar
+    // tokens válidos para cualquier cuenta.
+    @Value("${jwt.secret:}")
     private String secretKey;
 
     @Value("${jwt.expiration:600000}")
     private long jwtExpiration;
+
+    @PostConstruct
+    void requireUsableSecret() {
+        if (secretKey == null || secretKey.isBlank()) {
+            throw new IllegalStateException(
+                    "JWT_SECRET no está configurado y la aplicación no arranca sin clave de firma. "
+                  + "Genera una con \"openssl rand -hex 32\" y expórtala como JWT_SECRET, "
+                  + "o defínela en el .env que carga docker compose.");
+        }
+        int length = secretKey.getBytes(StandardCharsets.UTF_8).length;
+        if (length < MIN_SECRET_BYTES) {
+            throw new IllegalStateException(
+                    "JWT_SECRET es demasiado corto: HS256 exige al menos " + MIN_SECRET_BYTES
+                  + " bytes y se recibieron " + length + ". Genera una con \"openssl rand -hex 32\".");
+        }
+    }
 
     public String extractUsername(String token) {
         return extractClaim(token, claims -> claims.getSubject());
@@ -68,7 +92,9 @@ public class JwtService {
     }
 
     private Key getSignInKey() {
-        byte[] keyBytes = secretKey.getBytes();
+        // Charset explícito: getBytes() sin argumento depende de la plataforma, y una clave
+        // derivada de forma distinta en el contenedor invalidaría los tokens emitidos fuera de él.
+        byte[] keyBytes = secretKey.getBytes(StandardCharsets.UTF_8);
         return Keys.hmacShaKeyFor(keyBytes);
     }
 }

@@ -16,7 +16,8 @@ import jakarta.validation.constraints.Email;
 import jakarta.validation.constraints.NotBlank;
 import jakarta.validation.constraints.PositiveOrZero;
 import lombok.AllArgsConstructor;
-import lombok.Data;
+import lombok.Getter;
+import lombok.Setter;
 import lombok.NoArgsConstructor;
 
 import java.math.BigDecimal;
@@ -25,7 +26,8 @@ import java.time.LocalDateTime;
 // "user" is a reserved word in Oracle, so the table is named "users"
 @Entity
 @Table(name = "users", uniqueConstraints = @UniqueConstraint(name = "uk_users_email", columnNames = "email"))
-@Data
+@Getter
+@Setter
 @NoArgsConstructor
 @AllArgsConstructor
 public class User {
@@ -64,12 +66,40 @@ public class User {
     @Column(name = "financial_profile", length = 20)
     private FinancialProfile financialProfile;
 
-    // confidence of the assigned profile, 0.0 to 1.0; null until first computed
+    // confidence of the assigned profile, 0.0 to 1.0; null until first computed.
+    // Double y no BigDecimal a propósito: la columna profile_accuracy es FLOAT y el perfil
+    // oracle arranca con ddl-auto=validate, así que un BigDecimal (que Hibernate espera como
+    // number(38,2)) impide que la aplicación levante contra la Autonomous Database.
     @DecimalMin("0.0")
     @DecimalMax("1.0")
     @Column(name = "profile_accuracy")
-    private BigDecimal profileAccuracy;
+    private Double profileAccuracy;
 
     @Column(name = "profile_updated_at")
     private LocalDateTime profileUpdatedAt;
+
+    /**
+     * Identidad por clave primaria, no por contenido.
+     *
+     * <p>Con el {@code @Data} de Lombok, {@code equals} y {@code hashCode} miraban todos los campos:
+     * dos filas distintas con los mismos valores se confundían, el hash de una entidad cambiaba al
+     * editarla —lo que la vuelve irrecuperable dentro de un {@code HashSet}— y comparar dos referencias
+     * podía disparar la carga de relaciones. Una entidad sin id todavía no es nadie, así que solo es
+     * igual a sí misma.
+     */
+    @Override
+    public boolean equals(Object other) {
+        if (this == other) {
+            return true;
+        }
+        if (!(other instanceof User otro)) {
+            return false;
+        }
+        return id != null && id.equals(otro.getId());
+    }
+
+    @Override
+    public int hashCode() {
+        return User.class.hashCode();
+    }
 }

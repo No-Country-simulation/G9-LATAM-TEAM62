@@ -175,6 +175,50 @@
 					</annotationProcessorPaths>
 				</configuration>
 			</plugin>
+
+			<plugin>
+				<groupId>org.apache.maven.plugins</groupId>
+				<artifactId>maven-resources-plugin</artifactId>
+				<executions>
+					<!-- Empaqueta el parser de cartolas dentro del jar, en /scripts. Así viaja
+					     con la aplicación y StatementIngestionService lo resuelve por classpath
+					     en lugar de adivinar una ruta relativa al directorio de trabajo, que es
+					     distinto al ejecutar "mvn spring-boot:run", "java -jar" y el contenedor.
+					     El archivo sigue siendo editable en backend/scripts: esto solo lo copia. -->
+					<execution>
+						<id>copy-parser-script</id>
+						<phase>process-resources</phase>
+						<goals>
+							<goal>copy-resources</goal>
+						</goals>
+						<configuration>
+							<outputDirectory>${project.build.outputDirectory}/scripts</outputDirectory>
+							<resources>
+								<resource>
+									<directory>scripts</directory>
+									<includes>
+										<include>*.py</include>
+									</includes>
+								</resource>
+							</resources>
+						</configuration>
+					</execution>
+				</executions>
+			</plugin>
+
+			<plugin>
+				<groupId>org.apache.maven.plugins</groupId>
+				<artifactId>maven-surefire-plugin</artifactId>
+				<configuration>
+					<!-- Clave de firma exclusiva de la suite de tests. La aplicación exige
+					     JWT_SECRET para arrancar (ver application.properties), así que sin
+					     esto ningún @SpringBootTest levanta el contexto. No es un secreto:
+					     nunca firma tokens fuera de "mvn test". -->
+					<environmentVariables>
+						<JWT_SECRET>test-only-signing-key-not-used-outside-mvn-test</JWT_SECRET>
+					</environmentVariables>
+				</configuration>
+			</plugin>
 		</plugins>
 	</build>
 

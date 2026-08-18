@@ -1,9 +1,8 @@
 package com.g9latam.team62.fintech_api.service;
 
-import com.g9latam.team62.fintech_api.dto.ClassificationResult;
-import com.g9latam.team62.fintech_api.dto.MlPrediction;
 import com.g9latam.team62.fintech_api.model.Category;
 import com.g9latam.team62.fintech_api.model.CategoryMapping;
+import com.g9latam.team62.fintech_api.model.CategoryMethod;
 import com.g9latam.team62.fintech_api.repository.CategoryKeywordRepository;
 import com.g9latam.team62.fintech_api.repository.CategoryMappingRepository;
 import org.springframework.stereotype.Service;
@@ -43,26 +42,26 @@ public class CategoryClassifierService {
      */
     public ClassificationResult classify(String rawDescription) {
         if (rawDescription == null || rawDescription.isBlank()) {
-            return new ClassificationResult(Category.OTHER_EXPENSE, 0.0, "FALLBACK");
+            return new ClassificationResult(Category.OTHER_EXPENSE, 0.0, CategoryMethod.FALLBACK);
         }
 
         // Paso 0: Normalización del texto
         String normalized = TextNormalizer.normalize(rawDescription);
 
         if (normalized.isBlank()) {
-            return new ClassificationResult(Category.OTHER_EXPENSE, 0.0, "FALLBACK");
+            return new ClassificationResult(Category.OTHER_EXPENSE, 0.0, CategoryMethod.FALLBACK);
         }
 
         // Nivel 1: Coincidencia exacta en BD por retroalimentación/crowdsourcing
         Optional<CategoryMapping> mapping = mappingRepository.findByDescriptionPattern(normalized);
         if (mapping.isPresent()) {
-            return new ClassificationResult(mapping.get().getCategory(), 1.0, "BD_MAPPING");
+            return new ClassificationResult(mapping.get().getCategory(), 1.0, CategoryMethod.EXACT_MAPPING);
         }
 
         // Nivel 2: Coincidencia por palabra clave desde la BD (tabla category_keywords)
         Optional<Category> keywordMatch = keywordRepository.matchDescription(normalized);
         if (keywordMatch.isPresent()) {
-            return new ClassificationResult(keywordMatch.get(), 0.9, "KEYWORD_RULE");
+            return new ClassificationResult(keywordMatch.get(), 0.9, CategoryMethod.KEYWORD_RULE);
         }
 
         // Nivel 3: Inferencia del modelo de Machine Learning (si está disponible)
@@ -71,7 +70,7 @@ public class CategoryClassifierService {
                 MlPrediction prediction = mlInferenceService.predict(normalized);
                 if (prediction.confidence() >= ML_CONFIDENCE_THRESHOLD) {
                     return new ClassificationResult(
-                            prediction.category(), prediction.confidence(), "ML_MODEL");
+                            prediction.category(), prediction.confidence(), CategoryMethod.ML_MODEL);
                 }
             } catch (Exception e) {
                 // Si falla el servicio ML, continúa al fallback sin romper la ejecución
@@ -79,7 +78,7 @@ public class CategoryClassifierService {
         }
 
         // Nivel 4: Fallback por defecto
-        return new ClassificationResult(Category.OTHER_EXPENSE, 0.0, "FALLBACK");
+        return new ClassificationResult(Category.OTHER_EXPENSE, 0.0, CategoryMethod.FALLBACK);
     }
 
     /**

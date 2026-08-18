@@ -1,7 +1,8 @@
 package com.g9latam.team62.fintech_api.model;
 
 import lombok.AllArgsConstructor;
-import lombok.Data;
+import lombok.Getter;
+import lombok.Setter;
 import lombok.NoArgsConstructor;
 
 import jakarta.persistence.Entity;
@@ -22,7 +23,8 @@ import jakarta.persistence.EnumType;
  */
 @Entity
 @Table(name = "category_mappings")
-@Data
+@Getter
+@Setter
 @NoArgsConstructor
 @AllArgsConstructor
 public class CategoryMapping {
@@ -45,5 +47,22 @@ public class CategoryMapping {
         this.descriptionPattern = descriptionPattern;
         this.category = category;
         this.frequency = frequency;
+    }
+
+    // Identidad por clave primaria; el porqué está en User.equals.
+    @Override
+    public boolean equals(Object other) {
+        if (this == other) {
+            return true;
+        }
+        if (!(other instanceof CategoryMapping otro)) {
+            return false;
+        }
+        return id != null && id.equals(otro.getId());
+    }
+
+    @Override
+    public int hashCode() {
+        return CategoryMapping.class.hashCode();
     }
 }
