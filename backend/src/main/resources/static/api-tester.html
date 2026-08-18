@@ -222,29 +222,89 @@
                         </div>
                     </div>
 
-                    <!-- PASO 3: CONSULTAR Y CORREGIR CATEGORIA -->
+                    <!-- PASO 3: CONSULTAR, FILTRAR Y SELECCIONAR TRANSACCIONES -->
                     <div class="step-card" id="step3Card">
                         <div class="step-header">
                             <div class="step-title">
                                 <span class="step-number">3</span>
-                                Consultar Transacciones y Feedback (Aprendizaje)
+                                Consultar Transacciones, Filtros y Selección
                             </div>
                             <span class="method-badge method-get">GET / PUT</span>
                         </div>
                         <p style="font-size: 13px; color: var(--text-muted); margin-bottom: 12px;">
-                            Consulta las transacciones ingresadas. Si la IA o el clasificador cometió una imprecisión,
-                            corrige la categoría para alimentar el sistema de <strong>aprendizaje colaborativo</strong>.
+                            Consulta y filtra tus transacciones registradas. Puedes ordenar por categoría, monto o fecha, corregir categorías para el <strong>aprendizaje colaborativo</strong> y seleccionar qué transacciones enviar al <strong>Análisis Financiero</strong>.
                         </p>
 
-                        <div class="btn-group" style="margin-bottom: 12px;">
-                            <button class="btn" onclick="executeWorkflowFetchTransactions()">
-                                🔄 Cargar Mis Transacciones
-                            </button>
+                        <!-- Barra de Filtros y Ordenamiento -->
+                        <div class="filter-toolbar">
+                            <div class="form-group" style="grid-column: 1 / -1;">
+                                <label for="txSearchInput">🔍 Buscar Descripción / Operación / ID</label>
+                                <input type="text" id="txSearchInput" placeholder="Ej. LIDER, UBER, 8073913..." oninput="filterAndRenderTransactions()">
+                            </div>
+                            <div class="form-group">
+                                <label for="txCategoryFilter">Categoría</label>
+                                <select id="txCategoryFilter" onchange="filterAndRenderTransactions()">
+                                    <option value="ALL">Todas las Categorías</option>
+                                    <option value="FOOD">FOOD (Alimentación)</option>
+                                    <option value="TRANSPORT">TRANSPORT (Transporte)</option>
+                                    <option value="HOUSING">HOUSING (Vivienda)</option>
+                                    <option value="UTILITIES">UTILITIES (Servicios)</option>
+                                    <option value="ENTERTAINMENT">ENTERTAINMENT (Ocio)</option>
+                                    <option value="HEALTH">HEALTH (Salud)</option>
+                                    <option value="EDUCATION">EDUCATION (Educación)</option>
+                                    <option value="SHOPPING">SHOPPING (Compras)</option>
+                                    <option value="SALARY">SALARY (Sueldo)</option>
+                                    <option value="OTHER_EXPENSE">OTHER_EXPENSE (Otros Gastos)</option>
+                                    <option value="OTHER_INCOME">OTHER_INCOME (Otros Ingresos)</option>
+                                </select>
+                            </div>
+                            <div class="form-group">
+                                <label for="txMethodFilter">Medio de Pago</label>
+                                <select id="txMethodFilter" onchange="filterAndRenderTransactions()">
+                                    <option value="ALL">Todos los Medios</option>
+                                    <option value="DEBIT">Débito</option>
+                                    <option value="CREDIT">Crédito</option>
+                                    <option value="CASH">Efectivo</option>
+                                </select>
+                            </div>
+                            <div class="form-group">
+                                <label for="txSourceFilter">Origen / Fuente</label>
+                                <select id="txSourceFilter" onchange="filterAndRenderTransactions()">
+                                    <option value="ALL">Todas las Fuentes</option>
+                                    <option value="BANK">Cartola Bancaria</option>
+                                    <option value="MANUAL">Manual</option>
+                                </select>
+                            </div>
+                            <div class="form-group">
+                                <label for="txSortBy">Ordenar Por</label>
+                                <select id="txSortBy" onchange="filterAndRenderTransactions()">
+                                    <option value="date-desc">Fecha (Reciente → Antigua)</option>
+                                    <option value="date-asc">Fecha (Antigua → Reciente)</option>
+                                    <option value="amount-desc">Monto (Mayor → Menor)</option>
+                                    <option value="amount-asc">Monto (Menor → Mayor)</option>
+                                    <option value="desc-asc">Descripción (A → Z)</option>
+                                    <option value="cat-asc">Categoría (A → Z)</option>
+                                </select>
+                            </div>
+                        </div>
+
+                        <!-- Barra de Selección y Acciones -->
+                        <div class="selection-bar">
+                            <div class="selection-info">
+                                <span class="badge-chip badge-bank" id="selectedTxBadge">0 seleccionadas</span>
+                                <span style="color: var(--text-muted); font-size: 12px;" id="selectedSummaryText">Monto Seleccionado: $0</span>
+                            </div>
+                            <div class="btn-group">
+                                <button class="btn btn-outline btn-sm" onclick="toggleSelectAllTransactions(true)">✅ Seleccionar Todas</button>
+                                <button class="btn btn-outline btn-sm" onclick="toggleSelectAllTransactions(false)">❌ Limpiar Selección</button>
+                                <button class="btn btn-accent btn-sm" onclick="sendSelectedToAnalysis()">🚀 Analizar Seleccionadas en Paso 5</button>
+                                <button class="btn btn-sm" onclick="executeWorkflowFetchTransactions()">🔄 Recargar BD</button>
+                            </div>
                         </div>
 
                         <div id="txListContainer" style="overflow-x: auto;">
                             <p style="font-size: 13px; color: var(--text-dim); text-align: center; padding: 12px;">
-                                Haz clic en "Cargar Mis Transacciones" para obtener la lista.
+                                Haz clic en "Recargar BD" para obtener tus transacciones.
                             </p>
                         </div>
                     </div>
@@ -281,23 +341,26 @@
                         <div id="recommendationsOutput" style="margin-top: 14px;"></div>
                     </div>
 
-                    <!-- PASO 5: ANALISIS FINANCIERO AL VUELO -->
+                    <!-- PASO 5: ANALISIS FINANCIERO CON DATOS DE LA BD -->
                     <div class="step-card" id="step5Card">
                         <div class="step-header">
                             <div class="step-title">
                                 <span class="step-number">5</span>
-                                Análisis Financiero Interactivo y Clasificación al Vuelo
+                                Análisis Financiero y Diagnóstico Presupuestario
                             </div>
                             <span class="method-badge method-post">POST /api/analisis-financiero</span>
                         </div>
                         <p style="font-size: 13px; color: var(--text-muted); margin-bottom: 12px;">
-                            Envía ingreso, nivel de endeudamiento, frecuencia de ahorro y transacciones al vuelo.
-                            El sistema clasificará las transacciones, actualizará tu perfil y retornará un informe financiero.
+                            Ejecuta el análisis financiero integral sobre las <strong>transacciones reales registradas en la base de datos</strong> (subidas vía cartola o manuales). Determina tu ratio de gasto, asigna tu perfil financiero y genera recomendaciones INE Chile.
                         </p>
 
+                        <!-- Parámetros Financieros del Usuario -->
                         <div class="form-grid">
                             <div class="form-group">
-                                <label for="analysisIncome">Ingreso Mensual ($)</label>
+                                <div style="display: flex; justify-content: space-between; align-items: center;">
+                                    <label for="analysisIncome">Ingreso Mensual ($)</label>
+                                    <button type="button" class="btn btn-outline btn-sm" onclick="syncUserProfileToAnalysis()" style="padding: 2px 6px; font-size: 10px;">📋 Mi Perfil</button>
+                                </div>
                                 <input type="number" id="analysisIncome" value="1500000">
                             </div>
                             <div class="form-group">
@@ -315,27 +378,30 @@
                             </div>
                         </div>
 
-                        <div class="form-group" style="margin-top: 10px; margin-bottom: 12px;">
-                            <label for="analysisTxJSON">Transacciones a Analizar (Formato JSON):</label>
-                            <textarea id="analysisTxJSON" rows="5" style="font-family: 'Fira Code', monospace; font-size: 12px;">[
-  {
-    "descripcion": "COMPRA SUPERMERCADO JUMBO",
-    "valor": 78990.00
-  },
-  {
-    "descripcion": "PAGO UBER VIAJE",
-    "valor": 6500.00
-  },
-  {
-    "descripcion": "PAGO DEPARTAMENTO VIVIENDA",
-    "valor": 320000.00
-  }
-]</textarea>
+                        <!-- Alcance de Transacciones en BD -->
+                        <div style="background: rgba(30, 41, 64, 0.3); border: 1px solid var(--border-color); border-radius: var(--radius-md); padding: 12px; margin-top: 10px; margin-bottom: 14px;">
+                            <label style="font-size: 12px; font-weight: 600; margin-bottom: 8px; display: block;">Transacciones a Considerar para el Análisis:</label>
+                            <div style="display: flex; flex-direction: column; gap: 8px; font-size: 13px;">
+                                <label style="display: flex; align-items: center; gap: 8px; cursor: pointer;">
+                                    <input type="radio" name="analysisDbScope" id="scopeSelected" value="selected" checked onchange="updateAnalysisDbScope()">
+                                    <span>Usar solo las <strong><span id="analysisDbSelectedCount">0</span> transacciones seleccionadas</strong> en el Paso 3</span>
+                                </label>
+                                <label style="display: flex; align-items: center; gap: 8px; cursor: pointer;">
+                                    <input type="radio" name="analysisDbScope" id="scopeAll" value="all" onchange="updateAnalysisDbScope()">
+                                    <span>Usar <strong>todas las transacciones de mi cuenta</strong> en la base de datos</span>
+                                </label>
+                            </div>
+                            <div id="analysisDbSummaryBox" style="margin-top: 10px; font-size: 12px; color: var(--text-muted);">
+                                Selecciona transacciones en el Paso 3 o marca "todas" para ejecutar el diagnóstico.
+                            </div>
                         </div>
 
-                        <button class="btn btn-accent" onclick="executeWorkflowFinancialAnalysis()">
-                            📊 Ejecutar Análisis al Vuelo
+                        <button class="btn btn-accent" id="btnRunAnalysis" onclick="executeWorkflowFinancialAnalysis()">
+                            📊 Ejecutar Análisis Financiero
                         </button>
+
+                        <!-- Contenedor Visual de Resultados del Análisis -->
+                        <div id="financialAnalysisResultContainer" style="display: none;"></div>
                     </div>
 
                     <!-- PASO 6: HISTORIAL DE PERFILES Y RECOMENDACIONES -->

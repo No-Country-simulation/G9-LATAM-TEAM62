@@ -27,14 +27,19 @@ except Exception:            # el pipeline sigue funcionando sin la librería
 ALIAS_ENCABEZADO = {
     "fecha":       ["FECHA", "DATE"],
     "descripcion": ["DESCRIPCION", "DESCRIPTION", "DETALLE", "GLOSA", "CONCEPTO",
-                    "CONCEPT", "TRANSACTION_TYPE", "TRANSACTION TYPE",
-                    "TIPO DE TRANSACCION", "TYPE"],
+                    "CONCEPT", "TRANSACTION TYPE", "TIPO DE TRANSACCION", "TIPO DE OPERACION", "TYPE"],
     "cargo":       ["CARGO", "CHEQUE", "GIRO", "DEBITO", "DEBIT"],
     "abono":       ["ABONO", "DEPOSITO", "CREDITO", "CREDIT", "HABER"],
-    "monto":       ["MONTO DE TRANSACCION", "NET_AMOUNT", "NET AMOUNT", "AMOUNT",
+    "monto":       ["MONTO DE TRANSACCION", "NET AMOUNT", "AMOUNT",
                     "MONTO", "IMPORTE", "VALOR"],
     "saldo":       ["SALDO", "BALANCE"],
-    "nro_operacion": ["N° Operación","NRO OPERACION", "NRO. OPERACION", "NRO_OPERACION", "OPERATION NUMBER", "OPERATION_NUMBER", "OPERATION", "NRO DOCUMENTO", "NRO. DOCUMENTO", "NRO_DOCUMENTO", "DOCUMENTO", "NRO DOCTO", "NRO. DOCTO", "NRO_DOCTO", "NUM DOC", "NUM_DOC", "NRO TRANSACCION", "NRO. TRANSACCION", "NRO_TRANSACCION", "TRANSACTION ID", "TRANSACTION_ID", "REFERENCIA", "REFERENCE"],
+    "nro_operacion": [
+        "N OPERACION", "NRO OPERACION", "NUMERO OPERACION", "NUM OPERACION", "OPERACION",
+        "OPERATION NUMBER", "OPERATION", "NRO DOCUMENTO", "N DOCUMENTO", "NUMERO DOCUMENTO",
+        "DOCUMENTO", "NRO DOCTO", "N DOCTO", "DOCTO", "NUM DOC", "NUMERO DOC",
+        "N TRANSACCION", "NRO TRANSACCION", "NUMERO TRANSACCION", "TRANSACTION ID",
+        "REFERENCIA", "REFERENCE", "FOLIO", "NRO FOLIO", "N FOLIO"
+    ],
 }
 
 NOMBRE_CANONICO = {
@@ -106,7 +111,11 @@ def _sin_acentos(texto: str) -> str:
 
 
 def normalizar_encabezado(texto) -> str:
-    return _sin_acentos(str(texto)).upper().strip()
+    if texto is None or (isinstance(texto, float) and np.isnan(texto)):
+        return ""
+    texto = _sin_acentos(str(texto)).upper()
+    texto = re.sub(r"[°º#._\-/]", " ", texto)
+    return re.sub(r"\s+", " ", texto).strip()
 
 
 def limpiar_numero(x):
@@ -150,7 +159,9 @@ def limpiar_nro_operacion(x):
     s = str(x).strip()
     if s.endswith(".0"):
         s = s[:-2]
-    return s if s else None
+    if s.lower() in ("", "nan", "none", "null"):
+        return None
+    return s
 
 
 def extraer_nro_operacion_de_desc(desc: str) -> str | None:
@@ -596,6 +607,16 @@ import sys
 
 def _fila_a_dict(fila) -> dict:
     fecha = fila["FECHA"]
+    nro_op = fila.get("NRO_OPERACION") if "NRO_OPERACION" in fila else None
+    if nro_op is not None and not pd.isna(nro_op):
+        nro_op_str = str(nro_op).strip()
+        if nro_op_str.endswith(".0"):
+            nro_op_str = nro_op_str[:-2]
+        if nro_op_str.lower() in ("", "none", "nan", "null"):
+            nro_op_str = None
+    else:
+        nro_op_str = None
+
     return {
         "fecha": fecha.strftime("%Y-%m-%d") if pd.notna(fecha) else None,
         "descripcion": None if pd.isna(fila["DESCRIPCION"]) else str(fila["DESCRIPCION"]),
@@ -604,7 +625,7 @@ def _fila_a_dict(fila) -> dict:
         "monto": None if pd.isna(fila["MONTO"]) else float(fila["MONTO"]),
         "saldo": None if pd.isna(fila["SALDO"]) else float(fila["SALDO"]),
         "feriado": bool(fila["FERIADO"]) if pd.notna(fila["FERIADO"]) else False,
-        "nro_operacion": None if pd.isna(fila["NRO_OPERACION"]) else str(fila["NRO_OPERACION"]),
+        "nro_operacion": nro_op_str,
     }
 
 

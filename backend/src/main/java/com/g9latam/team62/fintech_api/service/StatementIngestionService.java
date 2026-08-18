@@ -67,7 +67,7 @@ public class StatementIngestionService {
             validateFileSignature(file);
             tempFile = createSecureTempFile(file);
             JsonNode rootNode = executePythonScript(tempFile, defaultYear, country);
-            List<Transaction> createdTransactions = processAndSaveTransactions(rootNode, userId);
+            List<Transaction> createdTransactions = processAndSaveTransactions(rootNode, userId, country);
 
             return buildResult(rootNode, file.getOriginalFilename(), country, createdTransactions);
 
@@ -176,9 +176,11 @@ public class StatementIngestionService {
         return root;
     }
 
-    private List<Transaction> processAndSaveTransactions(JsonNode root, Long userId) {
+    private List<Transaction> processAndSaveTransactions(JsonNode root, Long userId, String requestedCountry) {
         List<Transaction> createdTransactions = new ArrayList<>();
         String detectedBank = root.path("banco").asText(null);
+        String detectedCountry = root.path("pais").asText(null);
+        String currencyCode = resolveCurrencyCodeForCountry(detectedCountry, requestedCountry);
         JsonNode txArray = root.path("transacciones");
 
         if (!txArray.isArray()) return createdTransactions;
@@ -200,7 +202,11 @@ public class StatementIngestionService {
             transaction.setAmount(amount);
             transaction.setDate(date);
             transaction.setBalanceAfter(saldo != null ? BigDecimal.valueOf(saldo) : null);
-            transaction.setCurrency(new Currency(1L, "CLP"));
+            
+            Currency currency = new Currency();
+            currency.setNameCurrency(currencyCode);
+            transaction.setCurrency(currency);
+
             transaction.setSource(TransactionSource.BANK);
             transaction.setLinkStatus(LinkStatus.UNLINKED);
             transaction.setBankName(detectedBank);
@@ -224,6 +230,34 @@ public class StatementIngestionService {
         return createdTransactions;
     }
 
+    private String resolveCurrencyCodeForCountry(String detectedCountry, String requestedCountry) {
+        String country = (detectedCountry != null && !detectedCountry.isBlank())
+                ? detectedCountry.trim().toUpperCase()
+                : ((requestedCountry != null && !requestedCountry.isBlank()) ? requestedCountry.trim().toUpperCase() : "CL");
+
+        return switch (country) {
+            case "CL" -> "CLP";
+            case "AR" -> "ARS";
+            case "MX" -> "MXN";
+            case "CO" -> "COP";
+            case "PE" -> "PEN";
+            case "BR" -> "BRL";
+            case "UY" -> "UYU";
+            case "PY" -> "PYG";
+            case "BO" -> "BOB";
+            case "CR" -> "CRC";
+            case "DO" -> "DOP";
+            case "GT" -> "GTQ";
+            case "HN" -> "HNL";
+            case "NI" -> "NIO";
+            case "VE" -> "VES";
+            case "PA" -> "PAB";
+            case "US" -> "USD";
+            case "EU", "ES" -> "EUR";
+            default -> "CLP";
+        };
+    }
+
     private StatementIngestionResult buildResult(JsonNode root, String originalFilename, String country, List<Transaction> createdTransactions) {
         List<String> warnings = new ArrayList<>();
         JsonNode warningsNode = root.path("avisos");
@@ -231,10 +265,14 @@ public class StatementIngestionService {
             warningsNode.forEach(w -> warnings.add(w.asText()));
         }
 
+        String effectiveCountry = root.hasNonNull("pais") && !root.path("pais").asText().isBlank()
+                ? root.path("pais").asText()
+                : (country != null && !country.isBlank() ? country : "CL");
+
         return new StatementIngestionResult(
                 "ok",
                 root.path("archivo").asText(originalFilename != null ? originalFilename : "statement"),
-                root.path("pais").asText(country != null ? country : "CL"),
+                effectiveCountry,
                 root.path("anio").asInt(LocalDate.now().getYear()),
                 root.path("filas_crudas").asInt(0),
                 root.path("filas_validas").asInt(0),

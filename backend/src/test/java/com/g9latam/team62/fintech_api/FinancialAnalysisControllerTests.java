@@ -2,7 +2,6 @@ package com.g9latam.team62.fintech_api;
 
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.g9latam.team62.fintech_api.dto.FinancialAnalysisRequest;
-import com.g9latam.team62.fintech_api.dto.RawTransactionDTO;
 import com.g9latam.team62.fintech_api.dto.RegisterRequest;
 import com.g9latam.team62.fintech_api.model.*;
 import com.g9latam.team62.fintech_api.repository.CategoryBudgetTargetRepository;
@@ -25,6 +24,7 @@ import org.springframework.transaction.annotation.Transactional;
 
 import java.math.BigDecimal;
 import java.security.Principal;
+import java.time.LocalDate;
 import java.util.List;
 
 import static org.assertj.core.api.Assertions.assertThat;
@@ -47,6 +47,9 @@ class FinancialAnalysisControllerTests {
 
     @Autowired
     private TransactionRepository transactionRepository;
+
+    @Autowired
+    private com.g9latam.team62.fintech_api.repository.CurrencyRepository currencyRepository;
 
     @Autowired
     private FinancialProfileHistoryRepository historyRepository;
@@ -75,13 +78,20 @@ class FinancialAnalysisControllerTests {
 
     @BeforeEach
     void setUp() {
-        String email = "test.analysis@example.com";
-        testUser = userService.findByEmail(email)
-                .orElseGet(() -> userService.create(new RegisterRequest("Test User", email, "password")));
-        principal = () -> email;
+        // Register test user
+        RegisterRequest register = new RegisterRequest(
+                "Analisis Tester",
+                "analisis.tester@example.com",
+                "Password123!",
+                new BigDecimal("1000.00"),
+                SavingFrequency.MONTHLY
+        );
+        testUser = userService.create(register);
 
-        UserDetails userDetails = userDetailsService.loadUserByUsername(email);
+        // Authenticate test user
+        UserDetails userDetails = userDetailsService.loadUserByUsername(testUser.getEmail());
         jwtToken = jwtService.generateToken(userDetails);
+        principal = () -> testUser.getEmail();
 
         // Seed keywords for Nlevel classification
         keywordRepository.save(new CategoryKeyword(null, "JUMBO", Category.FOOD));
@@ -94,14 +104,35 @@ class FinancialAnalysisControllerTests {
 
     @Test
     void performsFinancialAnalysisSuccessfullyAndUpdatesUserAndSavesHistory() throws Exception {
-        RawTransactionDTO tx1 = new RawTransactionDTO("Jumbo Supermercado", new BigDecimal("100.00"));
-        RawTransactionDTO tx2 = new RawTransactionDTO("Uber viaje", new BigDecimal("50.00"));
+        // Seed transactions in DB for user
+        Transaction t1 = new Transaction();
+        t1.setUserId(testUser.getId());
+        t1.setDescription("Jumbo Supermercado");
+        t1.setAmount(new BigDecimal("100.00"));
+        t1.setCategory(Category.FOOD);
+        t1.setDate(LocalDate.now());
+        t1.setCurrency(currencyRepository.findByNameCurrencyIgnoreCase("CLP").orElseThrow());
+        t1.setSource(TransactionSource.BANK);
+        t1.setLinkStatus(LinkStatus.UNLINKED);
+        t1.setPaymentMethod(PaymentMethod.DEBIT);
+        transactionRepository.save(t1);
+
+        Transaction t2 = new Transaction();
+        t2.setUserId(testUser.getId());
+        t2.setDescription("Uber viaje");
+        t2.setAmount(new BigDecimal("50.00"));
+        t2.setCategory(Category.TRANSPORT);
+        t2.setDate(LocalDate.now());
+        t2.setCurrency(currencyRepository.findByNameCurrencyIgnoreCase("CLP").orElseThrow());
+        t2.setSource(TransactionSource.BANK);
+        t2.setLinkStatus(LinkStatus.UNLINKED);
+        t2.setPaymentMethod(PaymentMethod.DEBIT);
+        transactionRepository.save(t2);
 
         FinancialAnalysisRequest request = new FinancialAnalysisRequest(
                 new BigDecimal("1000.00"),
                 new BigDecimal("10.00"),
-                "Media",
-                List.of(tx1, tx2)
+                "Media"
         );
 
         mockMvc.perform(post("/api/analisis-financiero")
@@ -115,7 +146,7 @@ class FinancialAnalysisControllerTests {
                 .andExpect(jsonPath("$.resumen_gastos.transporte").value(50.00))
                 .andExpect(jsonPath("$.recomendaciones").isNotEmpty());
 
-        // Verify transactions were saved in H2 database
+        // Verify transactions exist in DB
         var savedTxs = transactionRepository.findByUserId(testUser.getId());
         assertThat(savedTxs).hasSize(2);
 
@@ -126,13 +157,63 @@ class FinancialAnalysisControllerTests {
     }
 
     @Test
+    void performsFinancialAnalysisUsingExistingDatabaseTransactions() throws Exception {
+        // Create existing transactions in DB
+        Transaction t1 = new Transaction();
+        t1.setUserId(testUser.getId());
+        t1.setDescription("Compra Lider Supermercado");
+        t1.setAmount(new BigDecimal("120000.00"));
+        t1.setCategory(Category.FOOD);
+        t1.setDate(LocalDate.now());
+        t1.setCurrency(currencyRepository.findByNameCurrencyIgnoreCase("CLP").orElseThrow());
+        t1.setSource(TransactionSource.BANK);
+        t1.setLinkStatus(LinkStatus.UNLINKED);
+        t1.setPaymentMethod(PaymentMethod.DEBIT);
+        Transaction savedT1 = transactionRepository.save(t1);
+
+        Transaction t2 = new Transaction();
+        t2.setUserId(testUser.getId());
+        t2.setDescription("Pago Metro Santiago");
+        t2.setAmount(new BigDecimal("45000.00"));
+        t2.setCategory(Category.TRANSPORT);
+        t2.setDate(LocalDate.now());
+        t2.setCurrency(currencyRepository.findByNameCurrencyIgnoreCase("CLP").orElseThrow());
+        t2.setSource(TransactionSource.BANK);
+        t2.setLinkStatus(LinkStatus.UNLINKED);
+        t2.setPaymentMethod(PaymentMethod.DEBIT);
+        Transaction savedT2 = transactionRepository.save(t2);
+
+        // Perform analysis referencing existing transaction IDs
+        FinancialAnalysisRequest request = new FinancialAnalysisRequest(
+                new BigDecimal("1500000.00"),
+                new BigDecimal("15.00"),
+                "Media",
+                List.of(savedT1.getId(), savedT2.getId())
+        );
+
+        mockMvc.perform(post("/api/analisis-financiero")
+                        .header("Authorization", "Bearer " + jwtToken)
+                        .principal(principal)
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content(objectMapper.writeValueAsString(request)))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.perfil_financiero").value("Saludable"))
+                .andExpect(jsonPath("$.resumen_gastos.alimentacion").value(120000.00))
+                .andExpect(jsonPath("$.resumen_gastos.transporte").value(45000.00))
+                .andExpect(jsonPath("$.recomendaciones").isNotEmpty());
+
+        // Verify recommendations were automatically saved in repository
+        List<Recommendation> savedRecs = recommendationRepository.findByUserId(testUser.getId());
+        assertThat(savedRecs).isNotEmpty();
+    }
+
+    @Test
     void rejectsInvalidAnalysisPayloadWithJakartaValidationMessages() throws Exception {
-        // Invalid payload: null income, empty transactions list
+        // Invalid payload: negative debt is invalid
         FinancialAnalysisRequest request = new FinancialAnalysisRequest(
                 null,
                 new BigDecimal("-5.0"), // Negative debt is invalid
-                "",
-                List.of()
+                ""
         );
 
         mockMvc.perform(post("/api/analisis-financiero")

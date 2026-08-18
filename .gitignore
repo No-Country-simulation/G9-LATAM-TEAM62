@@ -43,3 +43,10 @@ Wallet_*.zip
 **/Wallet_fintech/
 **/Wallet_fintech.zip
 application-local.properties
+
+### Python ###
+__pycache__/
+*.pyc
+*.pyo
+*.xlsx
+

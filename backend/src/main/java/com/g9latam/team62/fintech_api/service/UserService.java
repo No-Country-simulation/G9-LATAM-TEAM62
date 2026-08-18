@@ -50,6 +50,8 @@ public class UserService {
         user.setName(request.name());
         user.setEmail(request.email());
         user.setPassword(passwordEncoder.encode(request.password()));
+        user.setMonthlyIncome(request.monthlyIncome());
+        user.setSavingFrequency(request.savingFrequency());
         
         // No necesitamos setear ID ni perfiles a null, ¡porque ya son null al nacer!
         return repository.save(user);

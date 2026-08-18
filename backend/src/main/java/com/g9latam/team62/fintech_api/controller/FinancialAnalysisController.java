@@ -2,10 +2,11 @@ package com.g9latam.team62.fintech_api.controller;
 
 import com.g9latam.team62.fintech_api.dto.FinancialAnalysisRequest;
 import com.g9latam.team62.fintech_api.dto.FinancialAnalysisResponse;
-import com.g9latam.team62.fintech_api.dto.RawTransactionDTO;
 import com.g9latam.team62.fintech_api.dto.ProfileUpdateRequest;
 import com.g9latam.team62.fintech_api.model.*;
 import com.g9latam.team62.fintech_api.model.Currency;
+import com.g9latam.team62.fintech_api.repository.RecommendationRepository;
+import com.g9latam.team62.fintech_api.repository.TransactionRepository;
 import com.g9latam.team62.fintech_api.security.AuthorizationHelper;
 import com.g9latam.team62.fintech_api.service.BudgetRecommendationService;
 import com.g9latam.team62.fintech_api.service.TransactionService;
@@ -30,27 +31,33 @@ import java.time.LocalDate;
 import java.util.*;
 
 @RestController
-@Tag(name = "Análisis Financiero", description = "Endpoints para el análisis financiero interactivo y clasificación al vuelo")
+@Tag(name = "Análisis Financiero", description = "Endpoints para el análisis financiero y diagnóstico presupuestario del usuario")
 public class FinancialAnalysisController {
 
     private final UserService userService;
     private final TransactionService transactionService;
+    private final TransactionRepository transactionRepository;
+    private final RecommendationRepository recommendationRepository;
     private final BudgetRecommendationService budgetRecommendationService;
     private final AuthorizationHelper authorizationHelper;
 
     public FinancialAnalysisController(UserService userService,
                                        TransactionService transactionService,
+                                       TransactionRepository transactionRepository,
+                                       RecommendationRepository recommendationRepository,
                                        BudgetRecommendationService budgetRecommendationService,
                                        AuthorizationHelper authorizationHelper) {
         this.userService = userService;
         this.transactionService = transactionService;
+        this.transactionRepository = transactionRepository;
+        this.recommendationRepository = recommendationRepository;
         this.budgetRecommendationService = budgetRecommendationService;
         this.authorizationHelper = authorizationHelper;
     }
 
     @PostMapping({"/api/analisis-financiero", "/analisis-financiero"})
     @Operation(summary = "Analizar el comportamiento financiero del usuario",
-               description = "Recibe el ingreso mensual, nivel de endeudamiento, frecuencia de ahorro y transacciones del usuario, clasifica los gastos, actualiza el perfil y retorna recomendaciones.")
+               description = "Analiza los movimientos registrados en la base de datos (todas las transacciones del usuario o una lista de IDs seleccionados), actualiza el perfil y genera recomendaciones presupuestarias.")
     @ApiResponses({
             @ApiResponse(responseCode = "200", description = "Análisis completado exitosamente",
                     content = @Content(mediaType = "application/json", schema = @Schema(implementation = FinancialAnalysisResponse.class))),
@@ -65,52 +72,58 @@ public class FinancialAnalysisController {
         User user = authorizationHelper.getAuthenticatedUser(principal);
         Long userId = user.getId();
 
-        // 2. Actualizar datos del perfil del usuario según la request
-        user.setMonthlyIncome(request.ingresoMensual());
-        SavingFrequency savingFreq = parseSavingFrequency(request.frecuenciaAhorro());
+        // 2. Actualizar datos del perfil del usuario según la request (con fallback a valores guardados)
+        BigDecimal income = (request.ingresoMensual() != null && request.ingresoMensual().signum() >= 0)
+                ? request.ingresoMensual()
+                : (user.getMonthlyIncome() != null ? user.getMonthlyIncome() : BigDecimal.ZERO);
+
+        SavingFrequency savingFreq = (request.frecuenciaAhorro() != null && !request.frecuenciaAhorro().isBlank())
+                ? parseSavingFrequency(request.frecuenciaAhorro())
+                : (user.getSavingFrequency() != null ? user.getSavingFrequency() : SavingFrequency.MONTHLY);
+
+        BigDecimal debt = request.nivelEndeudamiento() != null ? request.nivelEndeudamiento() : BigDecimal.ZERO;
+
+        user.setMonthlyIncome(income);
         user.setSavingFrequency(savingFreq);
 
-        // 3. Procesar y persistir las transacciones
-        List<Transaction> createdTransactions = new ArrayList<>();
+        // 3. Obtener las transacciones objetivo a analizar desde la base de datos
+        List<Transaction> targetTransactions = new ArrayList<>();
         Map<String, BigDecimal> resumenGastosMap = new HashMap<>();
 
-        for (RawTransactionDTO rawTx : request.transacciones()) {
-            Transaction tx = new Transaction();
-            tx.setUserId(userId);
-            tx.setDescription(rawTx.descripcion());
-            tx.setAmount(rawTx.valor().abs());
-            tx.setDate(LocalDate.now());
-            tx.setCurrency(new Currency(1L, "CLP"));
-            tx.setSource(TransactionSource.BANK);
-            tx.setLinkStatus(LinkStatus.UNLINKED);
-            tx.setPaymentMethod(PaymentMethod.DEBIT); // Default to DEBIT for card-like statement rows
+        if (request.transactionIds() != null && !request.transactionIds().isEmpty()) {
+            // Caso A: IDs específicos seleccionados por el usuario desde la BD
+            Set<Long> selectedIds = new HashSet<>(request.transactionIds());
+            List<Transaction> userTxs = transactionRepository.findByUserId(userId);
+            for (Transaction tx : userTxs) {
+                if (selectedIds.contains(tx.getId())) {
+                    targetTransactions.add(tx);
+                }
+            }
+        } else {
+            // Caso B: Todas las transacciones existentes en BD para este usuario
+            targetTransactions.addAll(transactionRepository.findByUserId(userId));
+        }
 
-            // Persistir la transacción (el servicio se encargará de clasificarla automáticamente usando los 4 niveles)
-            Transaction savedTx = transactionService.create(tx);
-            createdTransactions.add(savedTx);
-
-            // Resumir gastos únicamente (tipo EXPENSE) para el bloque resumen_gastos
-            if (savedTx.getCategory() != null && savedTx.getCategory().getType() == TransactionType.EXPENSE) {
-                String label = translateCategory(savedTx.getCategory());
-                resumenGastosMap.put(label, resumenGastosMap.getOrDefault(label, BigDecimal.ZERO).add(savedTx.getAmount()));
+        // Resumir gastos únicamente (tipo EXPENSE) para el bloque resumen_gastos
+        for (Transaction tx : targetTransactions) {
+            if (tx.getCategory() != null && tx.getCategory().getType() == TransactionType.EXPENSE) {
+                String label = translateCategory(tx.getCategory());
+                resumenGastosMap.put(label, resumenGastosMap.getOrDefault(label, BigDecimal.ZERO).add(tx.getAmount()));
             }
         }
 
         // 4. Determinar el perfil financiero (`SAVER`, `BALANCED`, `SPENDER`, `AT_RISK`)
-        BigDecimal totalExpense = createdTransactions.stream()
+        BigDecimal totalExpense = targetTransactions.stream()
                 .filter(t -> t.getCategory() != null && t.getCategory().getType() == TransactionType.EXPENSE)
                 .map(Transaction::getAmount)
                 .reduce(BigDecimal.ZERO, BigDecimal::add);
 
-        BigDecimal income = request.ingresoMensual();
         BigDecimal expenseRatio = income.compareTo(BigDecimal.ZERO) > 0
                 ? totalExpense.divide(income, 4, RoundingMode.HALF_UP)
                 : BigDecimal.ONE;
 
         FinancialProfile profile;
         BigDecimal accuracy;
-
-        BigDecimal debt = request.nivelEndeudamiento();
 
         if (expenseRatio.compareTo(new BigDecimal("0.90")) >= 0 || debt.compareTo(new BigDecimal("40.0")) >= 0) {
             profile = FinancialProfile.AT_RISK;
@@ -130,7 +143,7 @@ public class FinancialAnalysisController {
         userService.updateProfile(userId, new ProfileUpdateRequest(profile, accuracy, savingFreq));
 
         // 6. Generar las recomendaciones utilizando la lógica stateless de benchmarking INE Chile
-        List<String> recomendaciones = budgetRecommendationService.generateRecommendationsStateless(createdTransactions, income);
+        List<String> recomendaciones = budgetRecommendationService.generateRecommendationsStateless(targetTransactions, income);
 
         // Si la lista de recomendaciones está vacía, aseguramos al menos algunos consejos por defecto según el perfil
         if (recomendaciones.isEmpty()) {
@@ -141,6 +154,16 @@ public class FinancialAnalysisController {
             } else {
                 recomendaciones.add("Buen control de tus gastos: continúa manteniendo tu margen de ahorro regular.");
             }
+        }
+
+        // Guardar recomendaciones generadas en el historial de la base de datos
+        for (String recText : recomendaciones) {
+            Recommendation rec = new Recommendation();
+            rec.setUserId(userId);
+            rec.setText(recText);
+            rec.setGeneratedAt(java.time.LocalDateTime.now());
+            rec.setProfileAtGeneration(profile);
+            recommendationRepository.save(rec);
         }
 
         // Traducir el perfil financiero para el formato JSON de salida esperado por el caso de estudio

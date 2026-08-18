@@ -3,6 +3,7 @@ let currentAuthToken = localStorage.getItem('fintech_jwt_token') || '';
 let currentUserId = localStorage.getItem('fintech_user_id') || '';
 let activeEndpointKey = 'authLogin';
 let currentTransactionsList = [];
+let selectedTransactionIds = new Set();
 
 // Pre-fill date controls with defaults
 document.addEventListener('DOMContentLoaded', () => {
@@ -320,8 +321,67 @@ async function executeWorkflowFetchTransactions() {
     const res = await makeApiCall(url, 'GET');
     if (res.ok && Array.isArray(res.data)) {
         currentTransactionsList = res.data;
-        renderTransactionsTable(res.data);
+        const validIds = new Set(res.data.map(t => t.id));
+        selectedTransactionIds = new Set([...selectedTransactionIds].filter(id => validIds.has(id)));
+        filterAndRenderTransactions();
     }
+}
+
+function filterAndRenderTransactions() {
+    const container = document.getElementById('txListContainer');
+    if (!container) return;
+
+    if (!currentTransactionsList || currentTransactionsList.length === 0) {
+        container.innerHTML = '<p style="font-size: 13px; color: var(--text-dim); text-align: center; padding: 12px;">No se encontraron transacciones para este usuario. Sube una cartola en el Paso 2 o crea una manual.</p>';
+        updateSelectedSummary();
+        return;
+    }
+
+    const searchQuery = (document.getElementById('txSearchInput')?.value || '').toLowerCase().trim();
+    const categoryFilter = document.getElementById('txCategoryFilter')?.value || 'ALL';
+    const methodFilter = document.getElementById('txMethodFilter')?.value || 'ALL';
+    const sourceFilter = document.getElementById('txSourceFilter')?.value || 'ALL';
+    const sortBy = document.getElementById('txSortBy')?.value || 'date-desc';
+
+    // 1. Filtrado
+    let filtered = currentTransactionsList.filter(tx => {
+        if (searchQuery) {
+            const desc = (tx.description || '').toLowerCase();
+            const opNum = (tx.operationNumber || '').toString().toLowerCase();
+            const idStr = (tx.id || '').toString();
+            const bank = (tx.bankName || '').toLowerCase();
+            if (!desc.includes(searchQuery) && !opNum.includes(searchQuery) && !idStr.includes(searchQuery) && !bank.includes(searchQuery)) {
+                return false;
+            }
+        }
+        if (categoryFilter !== 'ALL' && (tx.category || '') !== categoryFilter) return false;
+        if (methodFilter !== 'ALL' && (tx.paymentMethod || '') !== methodFilter) return false;
+        if (sourceFilter !== 'ALL' && (tx.source || '') !== sourceFilter) return false;
+        return true;
+    });
+
+    // 2. Ordenamiento
+    filtered.sort((a, b) => {
+        switch (sortBy) {
+            case 'date-desc':
+                return new Date(b.date || '1970-01-01') - new Date(a.date || '1970-01-01') || (b.id - a.id);
+            case 'date-asc':
+                return new Date(a.date || '1970-01-01') - new Date(b.date || '1970-01-01') || (a.id - b.id);
+            case 'amount-desc':
+                return (b.amount || 0) - (a.amount || 0);
+            case 'amount-asc':
+                return (a.amount || 0) - (b.amount || 0);
+            case 'desc-asc':
+                return (a.description || '').localeCompare(b.description || '');
+            case 'cat-asc':
+                return (a.category || '').localeCompare(b.category || '');
+            default:
+                return b.id - a.id;
+        }
+    });
+
+    renderTransactionsTable(filtered);
+    updateSelectedSummary();
 }
 
 function renderTransactionsTable(transactions) {
@@ -329,20 +389,27 @@ function renderTransactionsTable(transactions) {
     if (!container) return;
 
     if (transactions.length === 0) {
-        container.innerHTML = '<p style="font-size: 13px; color: var(--text-dim); text-align: center; padding: 12px;">No se encontraron transacciones para este usuario.</p>';
+        container.innerHTML = '<p style="font-size: 13px; color: var(--text-dim); text-align: center; padding: 12px;">Ninguna transacción coincide con los filtros aplicados.</p>';
         return;
     }
+
+    const allFilteredSelected = transactions.length > 0 && transactions.every(tx => selectedTransactionIds.has(tx.id));
 
     let html = `
         <table class="data-table">
             <thead>
                 <tr>
+                    <th style="width: 36px; text-align: center;">
+                        <input type="checkbox" id="selectAllCheckbox" onchange="toggleSelectFilteredTransactions(this.checked)" ${allFilteredSelected ? 'checked' : ''} title="Seleccionar/Deseleccionar mostradas">
+                    </th>
                     <th>ID</th>
                     <th>Fecha</th>
                     <th>Descripción</th>
+                    <th>N° Operación</th>
                     <th>Monto</th>
+                    <th>Origen / Tipo</th>
                     <th>Categoría Actual</th>
-                    <th>Método Clasificación</th>
+                    <th>Método Clasif.</th>
                     <th>Acción (Feedback)</th>
                 </tr>
             </thead>
@@ -350,25 +417,39 @@ function renderTransactionsTable(transactions) {
     `;
 
     transactions.forEach(tx => {
+        const isChecked = selectedTransactionIds.has(tx.id);
+        const currencyCode = (tx.currency && tx.currency.name_currency) ? tx.currency.name_currency : (tx.currency && tx.currency.nameCurrency ? tx.currency.nameCurrency : 'CLP');
+        const sourceBadge = tx.source === 'BANK' ? '<span class="badge-chip badge-bank">BANK</span>' : '<span class="badge-chip badge-manual">MANUAL</span>';
+        const methodText = tx.paymentMethod || 'DEBIT';
+
         html += `
-            <tr>
-                <td>${tx.id}</td>
+            <tr style="${isChecked ? 'background: rgba(56, 139, 253, 0.08);' : ''}">
+                <td style="text-align: center;">
+                    <input type="checkbox" onchange="toggleTransactionSelection(${tx.id}, this.checked)" ${isChecked ? 'checked' : ''}>
+                </td>
+                <td><small style="color: var(--text-muted);">#${tx.id}</small></td>
                 <td>${tx.date || 'N/A'}</td>
-                <td><strong>${tx.description || 'Sin descripción'}</strong></td>
-                <td>$${(tx.amount || 0).toLocaleString()}</td>
-                <td><span class="method-badge method-post">${tx.category || 'N/A'}</span></td>
+                <td><strong>${escapeHtml(tx.description || 'Sin descripción')}</strong></td>
+                <td><code style="font-size: 11px; color: #79c0ff;">${tx.operationNumber ? escapeHtml(tx.operationNumber) : '<span style="color:var(--text-dim);">—</span>'}</code></td>
+                <td><strong>$${(tx.amount || 0).toLocaleString()}</strong> <small style="color: var(--text-dim);">${currencyCode}</small></td>
+                <td>${sourceBadge} <small style="color: var(--text-muted);">${methodText}</small></td>
+                <td><span class="badge-chip badge-category">${tx.category || 'N/A'}</span></td>
                 <td><small style="color: var(--text-muted);">${tx.categoryMethod || 'MANUAL'}</small></td>
                 <td>
-                    <select id="corrCat_${tx.id}" style="padding: 4px 8px; font-size: 11px; width: 120px;">
-                        <option value="FOOD">FOOD</option>
-                        <option value="TRANSPORT">TRANSPORT</option>
-                        <option value="HOUSING">HOUSING</option>
-                        <option value="UTILITIES">UTILITIES</option>
-                        <option value="ENTERTAINMENT">ENTERTAINMENT</option>
-                        <option value="HEALTH">HEALTH</option>
-                        <option value="SHOPPING">SHOPPING</option>
+                    <select id="corrCat_${tx.id}" style="padding: 3px 6px; font-size: 11px; width: 110px;">
+                        <option value="FOOD" ${tx.category === 'FOOD' ? 'selected' : ''}>FOOD</option>
+                        <option value="TRANSPORT" ${tx.category === 'TRANSPORT' ? 'selected' : ''}>TRANSPORT</option>
+                        <option value="HOUSING" ${tx.category === 'HOUSING' ? 'selected' : ''}>HOUSING</option>
+                        <option value="UTILITIES" ${tx.category === 'UTILITIES' ? 'selected' : ''}>UTILITIES</option>
+                        <option value="ENTERTAINMENT" ${tx.category === 'ENTERTAINMENT' ? 'selected' : ''}>ENTERTAINMENT</option>
+                        <option value="HEALTH" ${tx.category === 'HEALTH' ? 'selected' : ''}>HEALTH</option>
+                        <option value="EDUCATION" ${tx.category === 'EDUCATION' ? 'selected' : ''}>EDUCATION</option>
+                        <option value="SHOPPING" ${tx.category === 'SHOPPING' ? 'selected' : ''}>SHOPPING</option>
+                        <option value="SALARY" ${tx.category === 'SALARY' ? 'selected' : ''}>SALARY</option>
+                        <option value="OTHER_EXPENSE" ${tx.category === 'OTHER_EXPENSE' ? 'selected' : ''}>OTHER_EXPENSE</option>
+                        <option value="OTHER_INCOME" ${tx.category === 'OTHER_INCOME' ? 'selected' : ''}>OTHER_INCOME</option>
                     </select>
-                    <button class="btn btn-outline btn-sm" onclick="executeCategoryCorrection(${tx.id})" style="padding: 3px 8px; font-size: 11px;">Corregir</button>
+                    <button class="btn btn-outline btn-sm" onclick="executeCategoryCorrection(${tx.id})" style="padding: 2px 6px; font-size: 11px;">Corregir</button>
                 </td>
             </tr>
         `;
@@ -376,6 +457,111 @@ function renderTransactionsTable(transactions) {
 
     html += `</tbody></table>`;
     container.innerHTML = html;
+}
+
+function escapeHtml(str) {
+    if (!str) return '';
+    return String(str).replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;').replace(/"/g, '&quot;');
+}
+
+function toggleTransactionSelection(txId, isSelected) {
+    if (isSelected) {
+        selectedTransactionIds.add(txId);
+    } else {
+        selectedTransactionIds.delete(txId);
+    }
+    filterAndRenderTransactions();
+}
+
+function toggleSelectAllTransactions(selectAll) {
+    if (selectAll) {
+        currentTransactionsList.forEach(tx => selectedTransactionIds.add(tx.id));
+    } else {
+        selectedTransactionIds.clear();
+    }
+    filterAndRenderTransactions();
+}
+
+function toggleSelectFilteredTransactions(selectAll) {
+    const searchQuery = (document.getElementById('txSearchInput')?.value || '').toLowerCase().trim();
+    const categoryFilter = document.getElementById('txCategoryFilter')?.value || 'ALL';
+    const methodFilter = document.getElementById('txMethodFilter')?.value || 'ALL';
+    const sourceFilter = document.getElementById('txSourceFilter')?.value || 'ALL';
+
+    currentTransactionsList.forEach(tx => {
+        let matches = true;
+        if (searchQuery) {
+            const desc = (tx.description || '').toLowerCase();
+            const opNum = (tx.operationNumber || '').toString().toLowerCase();
+            const idStr = (tx.id || '').toString();
+            const bank = (tx.bankName || '').toLowerCase();
+            if (!desc.includes(searchQuery) && !opNum.includes(searchQuery) && !idStr.includes(searchQuery) && !bank.includes(searchQuery)) matches = false;
+        }
+        if (categoryFilter !== 'ALL' && (tx.category || '') !== categoryFilter) matches = false;
+        if (methodFilter !== 'ALL' && (tx.paymentMethod || '') !== methodFilter) matches = false;
+        if (sourceFilter !== 'ALL' && (tx.source || '') !== sourceFilter) matches = false;
+
+        if (matches) {
+            if (selectAll) selectedTransactionIds.add(tx.id);
+            else selectedTransactionIds.delete(tx.id);
+        }
+    });
+    filterAndRenderTransactions();
+}
+
+function updateSelectedSummary() {
+    const badge = document.getElementById('selectedTxBadge');
+    const summary = document.getElementById('selectedSummaryText');
+    const dbSelectedCount = document.getElementById('analysisDbSelectedCount');
+    const dbSummaryBox = document.getElementById('analysisDbSummaryBox');
+
+    const totalCount = currentTransactionsList.length;
+    const selectedCount = selectedTransactionIds.size;
+
+    let totalSelectedAmount = 0;
+    let expenseSum = 0;
+    let incomeSum = 0;
+
+    currentTransactionsList.forEach(tx => {
+        if (selectedTransactionIds.has(tx.id)) {
+            const val = Math.abs(tx.amount || 0);
+            totalSelectedAmount += val;
+            if (tx.type === 'INCOME' || tx.category === 'SALARY' || tx.category === 'OTHER_INCOME') {
+                incomeSum += val;
+            } else {
+                expenseSum += val;
+            }
+        }
+    });
+
+    if (badge) badge.textContent = `${selectedCount} seleccionadas (de ${totalCount})`;
+    if (summary) {
+        summary.innerHTML = `Monto Seleccionado: <strong>$${totalSelectedAmount.toLocaleString()}</strong> (Gastos: $${expenseSum.toLocaleString()} | Ingresos: $${incomeSum.toLocaleString()})`;
+    }
+    if (dbSelectedCount) dbSelectedCount.textContent = selectedCount;
+    if (dbSummaryBox) {
+        const isSelectedScope = document.getElementById('scopeSelected')?.checked;
+        if (isSelectedScope) {
+            dbSummaryBox.innerHTML = `Se analizarán <strong>${selectedCount}</strong> transacciones seleccionadas (Gasto total estimado: <strong>$${expenseSum.toLocaleString()}</strong>).`;
+        } else {
+            dbSummaryBox.innerHTML = `Se analizarán <strong>todas (${totalCount})</strong> las transacciones de tu cuenta registradas en la BD.`;
+        }
+    }
+}
+
+function sendSelectedToAnalysis() {
+    if (selectedTransactionIds.size === 0) {
+        alert('Por favor selecciona al menos 1 transacción o selecciona la opción "Todas las transacciones" en el Paso 5.');
+    }
+    const scopeSelected = document.getElementById('scopeSelected');
+    if (scopeSelected) scopeSelected.checked = true;
+    updateAnalysisDbScope();
+
+    const step5 = document.getElementById('step5Card');
+    if (step5) {
+        step5.classList.add('active');
+        step5.scrollIntoView({ behavior: 'smooth', block: 'start' });
+    }
 }
 
 async function executeCategoryCorrection(txId) {
@@ -817,31 +1003,162 @@ async function checkCorsHeaders() {
     }
 }
 
-// ==================== NEW WORKFLOW AND SECURITY FUNCTIONS ====================
+function updateAnalysisDbScope() {
+    updateSelectedSummary();
+}
+
+async function syncUserProfileToAnalysis() {
+    const userId = document.getElementById('activeUserId').value || currentUserId;
+    if (!userId) {
+        alert('Ingresa tu User ID primero.');
+        return;
+    }
+    const res = await makeApiCall(`${getBaseUrl()}/api/users/${userId}`, 'GET');
+    if (res.ok && res.data) {
+        if (res.data.monthlyIncome || res.data.monthly_income) {
+            document.getElementById('analysisIncome').value = res.data.monthlyIncome || res.data.monthly_income;
+        }
+        if (res.data.savingFrequency || res.data.saving_frequency) {
+            const freq = res.data.savingFrequency || res.data.saving_frequency;
+            const select = document.getElementById('analysisSavingFreq');
+            if (select) {
+                for (let i = 0; i < select.options.length; i++) {
+                    if (select.options[i].value.toUpperCase() === freq.toUpperCase() || select.options[i].text.toUpperCase().includes(freq.toUpperCase())) {
+                        select.selectedIndex = i;
+                        break;
+                    }
+                }
+            }
+        }
+        alert('Datos de perfil sincronizados: Ingreso Mensual $' + Number(document.getElementById('analysisIncome').value).toLocaleString());
+    }
+}
+
 async function executeWorkflowFinancialAnalysis() {
     const income = parseFloat(document.getElementById('analysisIncome').value) || 0;
     const debt = parseFloat(document.getElementById('analysisDebt').value) || 0;
     const savingFreq = document.getElementById('analysisSavingFreq').value;
-    let txs = [];
-    try {
-        txs = JSON.parse(document.getElementById('analysisTxJSON').value);
-    } catch (e) {
-        alert('JSON de transacciones inválido: ' + e.message);
-        return;
-    }
 
-    const payload = {
+    let payload = {
         ingreso_mensual: income,
         nivel_endeudamiento: debt,
-        frecuencia_ahorro: savingFreq,
-        transacciones: txs
+        frecuencia_ahorro: savingFreq
     };
 
-    const res = await makeApiCall(`${getBaseUrl()}/api/analisis-financiero`, 'POST', payload);
-    if (res.ok) {
-        document.getElementById('step5Card').classList.remove('active');
-        document.getElementById('step6Card').classList.add('active');
+    const useAll = document.getElementById('scopeAll')?.checked;
+    if (!useAll) {
+        if (selectedTransactionIds.size === 0) {
+            alert('No has seleccionado transacciones en el Paso 3. Puedes marcar transacciones en la tabla o elegir "Usar todas las transacciones de mi cuenta".');
+            return;
+        }
+        payload.transaction_ids = Array.from(selectedTransactionIds);
+    } else {
+        payload.transaction_ids = [];
     }
+
+    const res = await makeApiCall(`${getBaseUrl()}/api/analisis-financiero`, 'POST', payload);
+    if (res.ok && res.data) {
+        renderFinancialAnalysisResults(res.data, income, debt);
+        document.getElementById('step5Card').classList.add('active');
+        document.getElementById('step6Card').classList.add('active');
+        // Auto refresh recommendations & profile history in Step 6
+        executeWorkflowFetchProfileHistory();
+        executeWorkflowFetchRecommendationHistory();
+    }
+}
+
+function renderFinancialAnalysisResults(data, income, debt) {
+    const container = document.getElementById('financialAnalysisResultContainer');
+    if (!container) return;
+
+    const perfil = data.perfil_financiero || 'Saludable';
+    const accuracy = data.precision ? (data.precision * 100).toFixed(0) : '90';
+    const resumen = data.resumen_gastos || {};
+    const recs = data.recomendaciones || [];
+
+    const perfilClass = perfil.replace(/\s+/g, '-');
+    const badgeColor = perfil === 'Saludable' ? '#2ea043' : (perfil === 'En riesgo' ? '#f85149' : '#d29922');
+    const badgeIcon = perfil === 'Saludable' ? '🌟' : (perfil === 'En riesgo' ? '⚠️' : '⚖️');
+
+    let totalGastos = 0;
+    Object.values(resumen).forEach(v => totalGastos += (Number(v) || 0));
+
+    let gastosRowsHtml = '';
+    const entries = Object.entries(resumen);
+    if (entries.length === 0) {
+        gastosRowsHtml = '<tr><td colspan="3" style="text-align: center; color: var(--text-dim);">No se registraron gastos en las transacciones analizadas.</td></tr>';
+    } else {
+        entries.forEach(([cat, val]) => {
+            const amount = Number(val) || 0;
+            const pctOfIncome = income > 0 ? ((amount / income) * 100).toFixed(1) : '—';
+            const pctOfTotal = totalGastos > 0 ? ((amount / totalGastos) * 100).toFixed(1) : '0';
+            gastosRowsHtml += `
+                <tr>
+                    <td><strong>${escapeHtml(cat.toUpperCase())}</strong></td>
+                    <td>$${amount.toLocaleString()} <small style="color: var(--text-muted);">(${pctOfTotal}% del gasto)</small></td>
+                    <td style="width: 35%;">
+                        <div style="display: flex; align-items: center; justify-content: space-between; font-size: 11px;">
+                            <span>${pctOfIncome}% del ingreso</span>
+                        </div>
+                        <div class="expense-progress-bar">
+                            <div class="expense-progress-fill" style="width: ${Math.min(Number(pctOfTotal), 100)}%;"></div>
+                        </div>
+                    </td>
+                </tr>
+            `;
+        });
+    }
+
+    let recsHtml = '';
+    if (recs.length === 0) {
+        recsHtml = '<p style="color: var(--text-muted); font-size: 13px;">No se encontraron observaciones presupuestarias adicionales.</p>';
+    } else {
+        recs.forEach(rec => {
+            recsHtml += `
+                <div class="rec-pill">
+                    <span>💡</span>
+                    <div>${escapeHtml(rec)}</div>
+                </div>
+            `;
+        });
+    }
+
+    container.innerHTML = `
+        <div class="analysis-result-box">
+            <div class="profile-hero ${perfilClass}">
+                <div>
+                    <div style="font-size: 12px; text-transform: uppercase; letter-spacing: 0.5px; color: var(--text-muted);">Perfil Financiero Determinado</div>
+                    <div style="font-size: 22px; font-weight: 700; color: ${badgeColor}; display: flex; align-items: center; gap: 8px;">
+                        ${badgeIcon} ${escapeHtml(perfil)}
+                    </div>
+                </div>
+                <div style="text-align: right;">
+                    <span class="badge-chip" style="background: rgba(255,255,255,0.1); font-size: 12px;">Precisión: ${accuracy}%</span>
+                    <div style="font-size: 11px; color: var(--text-muted); margin-top: 4px;">Endeudamiento: ${debt}%</div>
+                </div>
+            </div>
+
+            <h4 style="margin-bottom: 8px; font-size: 14px;">📊 Resumen de Gastos por Categoría (Total: $${totalGastos.toLocaleString()}):</h4>
+            <table class="data-table" style="margin-bottom: 16px;">
+                <thead>
+                    <tr>
+                        <th>Categoría</th>
+                        <th>Monto Total</th>
+                        <th>Proporción / Presupuesto</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    ${gastosRowsHtml}
+                </tbody>
+            </table>
+
+            <h4 style="margin-bottom: 8px; font-size: 14px;">📑 Recomendaciones y Diagnóstico Presupuestario (INE Chile):</h4>
+            <div style="margin-top: 6px;">
+                ${recsHtml}
+            </div>
+        </div>
+    `;
+    container.style.display = 'block';
 }
 
 async function executeWorkflowFetchProfileHistory() {

@@ -6,10 +6,12 @@ import com.g9latam.team62.fintech_api.model.Currency;
 import com.g9latam.team62.fintech_api.model.Recommendation;
 import com.g9latam.team62.fintech_api.model.Transaction;
 import com.g9latam.team62.fintech_api.model.TransactionType;
+import com.g9latam.team62.fintech_api.model.SavingFrequency;
 import com.g9latam.team62.fintech_api.model.User;
 import com.g9latam.team62.fintech_api.repository.RecommendationRepository;
 import com.g9latam.team62.fintech_api.repository.TransactionRepository;
 import com.g9latam.team62.fintech_api.service.RecommendationService;
+import com.g9latam.team62.fintech_api.service.StatementIngestionService;
 import com.g9latam.team62.fintech_api.service.TransactionService;
 import com.g9latam.team62.fintech_api.service.UserService;
 import org.junit.jupiter.api.Test;
@@ -36,9 +38,41 @@ class PersistenceIntegrationTests {
     @Autowired
     private RecommendationService recommendationService;
     @Autowired
+    private StatementIngestionService statementIngestionService;
+    @Autowired
     private TransactionRepository transactionRepository;
     @Autowired
     private RecommendationRepository recommendationRepository;
+
+    @Test
+    void ingestsCartolaStatementAndExtractsOperationNumbersAndCLPCurrency() throws Exception {
+        User user = userService.create(newUser("statement_tester@example.com"));
+        java.io.File cartolaFile = new java.io.File("../Cartola.xlsx");
+        if (!cartolaFile.exists()) {
+            cartolaFile = new java.io.File("Cartola.xlsx");
+        }
+        if (cartolaFile.exists()) {
+            byte[] content = java.nio.file.Files.readAllBytes(cartolaFile.toPath());
+            org.springframework.mock.web.MockMultipartFile multipartFile = new org.springframework.mock.web.MockMultipartFile(
+                    "file", "Cartola.xlsx", "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet", content);
+            
+            com.g9latam.team62.fintech_api.dto.StatementIngestionResult result =
+                    statementIngestionService.ingestStatement(multipartFile, user.getId(), 2026, "CL");
+            assertThat(result.status()).isEqualTo("ok");
+            assertThat(result.createdTransactions()).isNotEmpty();
+            
+            Transaction firstWithOp = result.createdTransactions().stream()
+                    .filter(t -> "PAGO FERNANDOVASCO".equals(t.getDescription()))
+                    .findFirst()
+                    .orElse(null);
+            
+            assertThat(firstWithOp).isNotNull();
+            assertThat(firstWithOp.getOperationNumber()).isEqualTo("8073913");
+            assertThat(firstWithOp.getCurrency().getNameCurrency()).isEqualTo("CLP");
+            assertThat(firstWithOp.getBalanceAfter()).isEqualByComparingTo("30852");
+            assertThat(firstWithOp.getBankName()).isEqualTo("CUENTA_RUT");
+        }
+    }
 
     @Test
     void storesAUserWithAHashedPasswordAndFindsItByEmailIgnoringCase() {
@@ -103,6 +137,26 @@ class PersistenceIntegrationTests {
         assertThat(userService.findById(java.util.Objects.requireNonNull(user.getId()))).isEmpty();
         assertThat(transactionRepository.findByUserId(user.getId())).isEmpty();
         assertThat(recommendationRepository.findByUserId(user.getId())).isEmpty();
+    }
+
+    @Test
+    void storesAUserWithMonthlyIncomeAndSavingFrequency() {
+        RegisterRequest request = new RegisterRequest(
+                "Sebas",
+                "sebas@example.com",
+                "Password123!",
+                new BigDecimal("1200000.00"),
+                SavingFrequency.MONTHLY
+        );
+        User saved = userService.create(request);
+
+        assertThat(saved.getId()).isNotNull();
+        assertThat(saved.getMonthlyIncome()).isEqualByComparingTo("1200000.00");
+        assertThat(saved.getSavingFrequency()).isEqualTo(SavingFrequency.MONTHLY);
+
+        User retrieved = userService.findById(saved.getId()).orElseThrow();
+        assertThat(retrieved.getMonthlyIncome()).isEqualByComparingTo("1200000.00");
+        assertThat(retrieved.getSavingFrequency()).isEqualTo(SavingFrequency.MONTHLY);
     }
 
     private RegisterRequest newUser(String email) {
