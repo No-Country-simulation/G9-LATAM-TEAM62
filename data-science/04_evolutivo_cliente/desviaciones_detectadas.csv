@@ -1,0 +1,11 @@
+usuario_id,categoria,pct_actual,promedio_historico,desviacion_std,diferencia_pp
+1,HEALTH,31.5,14.2,4.3,17.3
+2,HOUSING,15.3,2.5,4.0,12.8
+3,EDUCATION,20.0,7.4,4.5,12.7
+4,FOOD,18.7,5.2,4.0,13.5
+5,TRANSPORT,22.0,3.2,4.0,18.8
+6,TRANSPORT,23.9,5.5,4.0,18.4
+7,HEALTH,51.4,39.5,4.0,11.9
+8,FOOD,19.3,5.0,4.0,14.3
+9,UTILITIES,29.4,18.6,4.2,10.8
+10,FOOD,34.0,19.7,4.0,14.3
